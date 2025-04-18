@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPlayerIndex = 0;
     let players = [];
     let roundResults = [];
+    let currentRoundNumber = 1;
+    let totalRounds = 3;
     
     // Sound effects (optional)
     const correctSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAqAABHnwAFBwkMDhATFRcaHB8hJCYpKy4wMzU4Ojs+QUNGSEtNUFJVV1pcX2FkZ2lsbnFzdnl7foGDhoiLjZCSlZeanZ+ipKeprK6xtLa5vL7BxMbJy87R09bY293g4uXn6uzu8fP2+fv+AAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAXaAAAAAAAAR5+fSpwoAAAAAAAAAAAAAAAAAAD/+0DEAAP7uuzoYwkAJ3VNOt7Pg3B7QwdgAsK6WTEsxoiWpnrJmDNDIwRtCY+g8BBIiDtHcMjAcMTCYAwCAmDkNzBIBuVP/1QLJcHgBmBYDAQMwNhmAK10MCQCzAzAcGA4AIHBMLTJm0MFgBwYBGCAHA2DphR+kDgCwSAYwFAGDgdHYZ+k14qigAYJgJAQCAAHgKHgRB/+NUB4gFwUAIwHAcS+VQj9rn//1QygNB3C//tAxAcAEn7s8f5iAAp8ZqH/sOAFLVBJ0iNTTy1DIMzIJPLTO3/xAAJDqIvGp9C5wJeJh3+LuH/5EAKjABG2aLu69F3C7sTzAEOwHBUJUNw6gdF36t80QmDIcCCFWXDtF3dF3d4O4nGQXB4MXSKlRuIgouIl3+r/yrVbiyUMDBBwfJcFYuAGTjXqP/7NKtQw2d8qsP/7QMQDARKq0uz+HgCKGFXh/5hQCbgzOYuIcUWkBIKQh/KqgxarILDEoJiYUZSfJjTaZMYU1FMy45OS41VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=');
@@ -47,7 +49,15 @@ document.addEventListener('DOMContentLoaded', function() {
     openPlayerSetupButton.addEventListener('click', openPlayerSetup);
     backToMenuButton.addEventListener('click', goBackToMenu);
     startButton.addEventListener('click', startGame);
-    playAgainButton.addEventListener('click', openPlayerSetup);
+    playAgainButton.addEventListener('click', () => {
+        // Start a new round or go back to player setup if all rounds are finished
+        if (currentRoundNumber < totalRounds) {
+            currentRoundNumber++;
+            startNextRound();
+        } else {
+            openPlayerSetup();
+        }
+    });
     submitButton.addEventListener('click', checkAnswer);
     
     // Player count selection changes the input fields
@@ -106,6 +116,9 @@ document.addEventListener('DOMContentLoaded', function() {
         startScreen.classList.add('hidden');
         resultScreen.classList.add('hidden');
         playerSetupScreen.classList.remove('hidden');
+        
+        // Reset round number
+        currentRoundNumber = 1;
         
         // Reset player count to 1 and update inputs
         playerCountSelect.value = "1";
@@ -257,7 +270,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             players.push({
                 name: playerName,
-                score: 0
+                score: 0,
+                roundScores: [0, 0, 0] // Scores for each round
             });
         }
         
@@ -268,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * Start a new game
      */
     function startGame() {
-        console.log("Starting a new game...");
+        console.log("Starting a new game for round 1...");
         
         // Setup players from input fields
         setupPlayers();
@@ -278,33 +292,55 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPlayerIndex = 0;
         roundResults = [];
         currentRound = [];
-        
-        // Reset player scores
-        players.forEach(player => {
-            player.score = 0;
-        });
-        
-        // Check if we have categories data
-        if (!categories || categories.length === 0 || categories.every(cat => !cat.items || cat.items.length === 0)) {
-            console.error("No category data available. Using fallback data.");
-            fallbackItems();
-        } else {
-            // Select random items for this round
-            selectRandomItems();
-        }
-        
-        console.log("Current round items:", currentRound);
-        
-        // Reset UI
-        scoreElement.textContent = players[currentPlayerIndex].score;
-        currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
-        currentQuestionElement.textContent = currentQuestionIndex + 1;
-        feedbackDiv.classList.add('hidden');
+        currentRoundNumber = 1;
         
         // Show game screen
         playerSetupScreen.classList.add('hidden');
         resultScreen.classList.add('hidden');
         gameScreen.classList.remove('hidden');
+        
+        // Start first round
+        startRound();
+    }
+
+    /**
+     * Start the next round
+     */
+    function startNextRound() {
+        console.log(`Starting round ${currentRoundNumber}...`);
+        
+        // Reset state for the new round
+        currentQuestionIndex = 0;
+        currentPlayerIndex = 0;
+        currentRound = [];
+        
+        // Hide result screen and show game screen
+        resultScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        
+        // Start the round
+        startRound();
+    }
+
+    /**
+     * Start a round for the current player
+     */
+    function startRound() {
+        // Select random items for this round
+        if (!categories || categories.length === 0 || categories.every(cat => !cat.items || cat.items.length === 0)) {
+            console.error("No category data available. Using fallback data.");
+            fallbackItems();
+        } else {
+            selectRandomItems();
+        }
+        
+        console.log(`Round ${currentRoundNumber}: Player ${currentPlayerIndex + 1} (${players[currentPlayerIndex].name})`);
+        
+        // Reset UI
+        scoreElement.textContent = players[currentPlayerIndex].roundScores[currentRoundNumber - 1];
+        currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
+        currentQuestionElement.textContent = currentQuestionIndex + 1;
+        feedbackDiv.classList.add('hidden');
         
         // Load the first question
         loadQuestion();
@@ -432,12 +468,21 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     async function loadQuestion() {
         if (currentQuestionIndex >= currentRound.length) {
-            showResults();
+            // All questions for this player are done
+            if (currentPlayerIndex < players.length - 1) {
+                // Move to the next player
+                currentPlayerIndex++;
+                currentQuestionIndex = 0;
+                startRound();
+            } else {
+                // All players have completed this round
+                showRoundResults();
+            }
             return;
         }
         
         const currentQuestion = currentRound[currentQuestionIndex];
-        console.log(`Loading question ${currentQuestionIndex + 1}: ${currentQuestion.item} (${currentQuestion.category})`);
+        console.log(`Loading question ${currentQuestionIndex + 1} for ${players[currentPlayerIndex].name}: ${currentQuestion.item} (${currentQuestion.category})`);
         console.log(`Image path: ${currentQuestion.imagePath}`);
         
         // Clear previous feedback
@@ -446,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update question number and current player
         currentQuestionElement.textContent = currentQuestionIndex + 1;
         currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
-        scoreElement.textContent = players[currentPlayerIndex].score;
+        scoreElement.textContent = players[currentPlayerIndex].roundScores[currentRoundNumber - 1];
         
         // Load image with fade effect
         gameImage.style.opacity = 0;
@@ -504,16 +549,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Move to the next player
-     */
-    function nextPlayer() {
-        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-        console.log(`Switching to player: ${players[currentPlayerIndex].name}`);
-        currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
-        scoreElement.textContent = players[currentPlayerIndex].score;
-    }
-
-    /**
      * Check if the user's answer is correct
      */
     function checkAnswer() {
@@ -555,12 +590,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update score if correct
         if (isCorrect) {
+            // Update the score for the current round
+            currentPlayer.roundScores[currentRoundNumber - 1]++;
+            // Update total score
             currentPlayer.score++;
-            scoreElement.textContent = currentPlayer.score;
+            // Update display
+            scoreElement.textContent = currentPlayer.roundScores[currentRoundNumber - 1];
         }
         
         // Save the result for the summary
         roundResults.push({
+            round: currentRoundNumber,
             item: currentQuestion.item,
             category: currentQuestion.category,
             imagePath: currentQuestion.imagePath,
@@ -571,52 +611,86 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Move to the next question after a short delay
         setTimeout(() => {
-            if (players.length > 1) {
-                nextPlayer();
-            }
-            
             currentQuestionIndex++;
             loadQuestion();
         }, 1500);
     }
 
     /**
-     * Show the final results
+     * Show the results for the current round
      */
-    function showResults() {
+    function showRoundResults() {
         // Hide game screen, show result screen
         gameScreen.classList.add('hidden');
         resultScreen.classList.remove('hidden');
         
-        // Sort players by score (highest first)
-        const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-        const highestScore = sortedPlayers[0].score;
+        // Update title based on round number
+        const resultTitle = document.querySelector('#result-screen h2');
+        if (currentRoundNumber < totalRounds) {
+            resultTitle.textContent = `Round ${currentRoundNumber} Completed!`;
+            playAgainButton.textContent = `Start Round ${currentRoundNumber + 1}`;
+        } else {
+            resultTitle.textContent = `Game Over - Final Results!`;
+            playAgainButton.textContent = `Play Again`;
+        }
+        
+        // Sort players by score for the current round
+        const playerRoundScores = players.map(player => ({
+            name: player.name,
+            roundScore: player.roundScores[currentRoundNumber - 1],
+            totalScore: player.score
+        }));
+        
+        const sortedPlayersByRound = [...playerRoundScores].sort((a, b) => b.roundScore - a.roundScore);
+        const highestRoundScore = sortedPlayersByRound[0].roundScore;
         
         // Display player scores
         playerScoresElement.innerHTML = '';
         
-        sortedPlayers.forEach((player, index) => {
+        // Add round header
+        const roundHeader = document.createElement('div');
+        roundHeader.className = 'round-header';
+        roundHeader.innerHTML = `
+            <h3>Round ${currentRoundNumber} Scores</h3>
+            ${currentRoundNumber === totalRounds ? '<h3>Total Scores</h3>' : ''}
+        `;
+        playerScoresElement.appendChild(roundHeader);
+        
+        // Add player scores
+        sortedPlayersByRound.forEach((player) => {
             const scoreItem = document.createElement('div');
-            scoreItem.className = `player-score-item ${player.score === highestScore ? 'winner' : ''}`;
+            scoreItem.className = `player-score-item ${player.roundScore === highestRoundScore ? 'winner' : ''}`;
             
             const playerName = document.createElement('div');
             playerName.className = 'player-name';
             playerName.textContent = player.name;
             
-            const playerScore = document.createElement('div');
-            playerScore.className = 'player-score';
-            playerScore.textContent = `${player.score} / ${currentRound.length}`;
+            const scoreInfo = document.createElement('div');
+            scoreInfo.className = 'score-info';
+            
+            // Show both round score and total if final round
+            if (currentRoundNumber === totalRounds) {
+                scoreInfo.innerHTML = `
+                    <span class="round-score">${player.roundScore}/${currentRound.length}</span>
+                    <span class="total-score">Total: ${player.totalScore}/${currentRound.length * totalRounds}</span>
+                `;
+            } else {
+                scoreInfo.textContent = `${player.roundScore}/${currentRound.length}`;
+            }
             
             scoreItem.appendChild(playerName);
-            scoreItem.appendChild(playerScore);
+            scoreItem.appendChild(scoreInfo);
             playerScoresElement.appendChild(scoreItem);
         });
+        
+        // Filter results for current round
+        const currentRoundResults = roundResults.filter(result => result.round === currentRoundNumber);
         
         // Clear previous results
         resultDetailsElement.innerHTML = '';
         
-        // Add each result to the details
-        roundResults.forEach((result, index) => {
+        // Only show detailed results for the current round
+        currentRoundResults.forEach((result, index) => {
             const resultItem = document.createElement('div');
             resultItem.className = `result-item ${result.isCorrect ? 'correct' : 'incorrect'}`;
             
@@ -626,7 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const details = document.createElement('div');
             details.innerHTML = `
-                <strong>Question ${Math.floor(index / players.length) + 1}:</strong> ${result.item} (${result.category})<br>
+                <strong>Question ${index % currentRound.length + 1}:</strong> ${result.item} (${result.category})<br>
                 <small>${result.player}: ${result.userAnswer || '(no answer)'}</small>
             `;
             
