@@ -30,7 +30,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Game state
     let categories = [];
-    let currentRound = [];
+    let allPlayers = []; // Store players for the whole game
+    let playerRounds = []; // Array to store each player's round images
     let currentQuestionIndex = 0;
     let currentPlayerIndex = 0;
     let players = [];
@@ -263,16 +264,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupPlayers() {
         const playerCount = parseInt(playerCountSelect.value);
         players = [];
+        allPlayers = []; // Reset the stored players
         
         for (let i = 1; i <= playerCount; i++) {
             const nameInput = document.getElementById(`player${i}-name`);
             const playerName = nameInput.value.trim() || `Player ${i}`;
             
-            players.push({
+            const player = {
                 name: playerName,
                 score: 0,
                 roundScores: [0, 0, 0] // Scores for each round
-            });
+            };
+            
+            players.push(player);
+            allPlayers.push(player); // Store in our persistent array
         }
         
         console.log("Players setup:", players);
@@ -291,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentQuestionIndex = 0;
         currentPlayerIndex = 0;
         roundResults = [];
-        currentRound = [];
+        playerRounds = []; // Reset player rounds
         currentRoundNumber = 1;
         
         // Show game screen
@@ -299,8 +304,30 @@ document.addEventListener('DOMContentLoaded', function() {
         resultScreen.classList.add('hidden');
         gameScreen.classList.remove('hidden');
         
+        // Generate all player rounds for the current round
+        generatePlayerRounds();
+        
         // Start first round
         startRound();
+    }
+
+    /**
+     * Generate rounds for all players
+     */
+    function generatePlayerRounds() {
+        playerRounds = []; // Clear existing rounds
+        
+        // For each player, generate a unique set of questions
+        for (let i = 0; i < players.length; i++) {
+            if (!categories || categories.length === 0 || categories.every(cat => !cat.items || cat.items.length === 0)) {
+                console.error("No category data available for player " + (i+1) + ". Using fallback data.");
+                playerRounds.push(generateFallbackItems());
+            } else {
+                playerRounds.push(generateRandomItems());
+            }
+        }
+        
+        console.log("Generated rounds for all players:", playerRounds);
     }
 
     /**
@@ -312,7 +339,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset state for the new round
         currentQuestionIndex = 0;
         currentPlayerIndex = 0;
-        currentRound = [];
+        
+        // Generate new rounds for all players
+        generatePlayerRounds();
         
         // Hide result screen and show game screen
         resultScreen.classList.add('hidden');
@@ -326,15 +355,9 @@ document.addEventListener('DOMContentLoaded', function() {
      * Start a round for the current player
      */
     function startRound() {
-        // Select random items for this round
-        if (!categories || categories.length === 0 || categories.every(cat => !cat.items || cat.items.length === 0)) {
-            console.error("No category data available. Using fallback data.");
-            fallbackItems();
-        } else {
-            selectRandomItems();
-        }
-        
         console.log(`Round ${currentRoundNumber}: Player ${currentPlayerIndex + 1} (${players[currentPlayerIndex].name})`);
+        
+        // Current player's round is already set in playerRounds[currentPlayerIndex]
         
         // Reset UI
         scoreElement.textContent = players[currentPlayerIndex].roundScores[currentRoundNumber - 1];
@@ -347,16 +370,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Select random items from different categories for this round
+     * Generate a set of random items for a player's round
      */
-    function selectRandomItems() {
+    function generateRandomItems() {
+        const playerRound = [];
+        
         // Get all categories that have items
         const validCategories = categories.filter(cat => cat.items && cat.items.length > 0);
         
         if (validCategories.length === 0) {
             console.error("No valid categories with items found.");
-            fallbackItems();
-            return;
+            return generateFallbackItems();
         }
         
         console.log("Valid categories for selection:", validCategories.map(c => c.name));
@@ -366,30 +390,30 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Try to select one item from each category first
         for (const category of sortedCategories) {
-            if (currentRound.length < 5) {
+            if (playerRound.length < 5) {
                 const randomIndex = Math.floor(Math.random() * category.items.length);
                 const item = category.items[randomIndex];
                 
                 // Create the file path
                 const imagePath = `img/${category.name}/${item.replace(/ /g, '_').toLowerCase()}.jpg`;
                 
-                currentRound.push({
+                playerRound.push({
                     category: category.name,
                     item: item,
                     imagePath: imagePath
                 });
             }
             
-            if (currentRound.length >= 5) break;
+            if (playerRound.length >= 5) break;
         }
         
         // If we don't have 5 items yet, add more from any category
-        if (currentRound.length < 5) {
+        if (playerRound.length < 5) {
             // Keep track of items we've already chosen
-            const chosenItems = currentRound.map(item => `${item.category}-${item.item}`);
+            const chosenItems = playerRound.map(item => `${item.category}-${item.item}`);
             
             // Continue adding items until we have 5 or run out of unique items
-            while (currentRound.length < 5) {
+            while (playerRound.length < 5) {
                 // Randomly select a category
                 const categoryIndex = Math.floor(Math.random() * validCategories.length);
                 const category = validCategories[categoryIndex];
@@ -406,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Create the file path
                     const imagePath = `img/${category.name}/${item.replace(/ /g, '_').toLowerCase()}.jpg`;
                     
-                    currentRound.push({
+                    playerRound.push({
                         category: category.name,
                         item: item,
                         imagePath: imagePath
@@ -421,17 +445,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Shuffle the round
-        shuffleArray(currentRound);
-        console.log("Selected items for this round:", currentRound);
+        const shuffledRound = [...playerRound]; // Create a copy to shuffle
+        shuffleArray(shuffledRound);
+        return shuffledRound;
     }
 
     /**
-     * Fallback items for testing when no images are available
+     * Generate fallback items for a player's round
      */
-    function fallbackItems() {
-        console.log("Using fallback items for the game round");
+    function generateFallbackItems() {
+        console.log("Using fallback items for a player's round");
         
-        currentRound = [
+        const fallbackRound = [
             {
                 category: 'actors',
                 item: 'Keanu Reeves',
@@ -460,14 +485,17 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
         
         // Shuffle the round
-        shuffleArray(currentRound);
+        const shuffledRound = [...fallbackRound]; // Create a copy to shuffle
+        shuffleArray(shuffledRound);
+        return shuffledRound;
     }
 
     /**
      * Load the current question
      */
     async function loadQuestion() {
-        if (currentQuestionIndex >= currentRound.length) {
+        // Check if we've gone through all questions for this player
+        if (currentQuestionIndex >= 5) {
             // All questions for this player are done
             if (currentPlayerIndex < players.length - 1) {
                 // Move to the next player
@@ -481,7 +509,26 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const currentQuestion = currentRound[currentQuestionIndex];
+        // Get the current player's round items
+        const currentPlayerRound = playerRounds[currentPlayerIndex];
+        
+        // Double check we have valid items
+        if (!currentPlayerRound || currentPlayerRound.length === 0) {
+            console.error("No items found for the current player's round");
+            return;
+        }
+        
+        // Get current question for the current player
+        const currentQuestion = currentPlayerRound[currentQuestionIndex];
+        
+        if (!currentQuestion) {
+            console.error("Question not found at index", currentQuestionIndex);
+            // Skip to the next question
+            currentQuestionIndex++;
+            loadQuestion();
+            return;
+        }
+        
         console.log(`Loading question ${currentQuestionIndex + 1} for ${players[currentPlayerIndex].name}: ${currentQuestion.item} (${currentQuestion.category})`);
         console.log(`Image path: ${currentQuestion.imagePath}`);
         
@@ -501,7 +548,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (imageCache[currentQuestion.imagePath]) {
                 console.log("Loading image from cache");
                 gameImage.src = imageCache[currentQuestion.imagePath];
-                gameImage.style.opacity = 1;
+                
+                // Make sure we wait for the fade-in to complete
+                setTimeout(() => {
+                    gameImage.style.opacity = 1;
+                }, 50);
             } else {
                 // Check if the image exists
                 const exists = await checkImageExists(currentQuestion.imagePath);
@@ -513,7 +564,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Cache the image for future use
                     gameImage.onload = function() {
                         imageCache[currentQuestion.imagePath] = currentQuestion.imagePath;
-                        gameImage.style.opacity = 1;
+                        setTimeout(() => {
+                            gameImage.style.opacity = 1;
+                        }, 50);
                     };
                 } else {
                     console.warn(`Image not found: ${currentQuestion.imagePath}`);
@@ -528,7 +581,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Use the placeholder
                     gameImage.src = placeholderDataUrl;
                     imageCache[currentQuestion.imagePath] = placeholderDataUrl;
-                    gameImage.style.opacity = 1;
+                    
+                    setTimeout(() => {
+                        gameImage.style.opacity = 1;
+                    }, 50);
                 }
             }
         } catch (error) {
@@ -540,7 +596,10 @@ document.addEventListener('DOMContentLoaded', function() {
             );
             
             gameImage.src = placeholderDataUrl;
-            gameImage.style.opacity = 1;
+            
+            setTimeout(() => {
+                gameImage.style.opacity = 1;
+            }, 50);
         }
         
         // Clear and focus on input
@@ -552,9 +611,16 @@ document.addEventListener('DOMContentLoaded', function() {
      * Check if the user's answer is correct
      */
     function checkAnswer() {
-        if (currentQuestionIndex >= currentRound.length) return;
+        // Get the current player's round items
+        const currentPlayerRound = playerRounds[currentPlayerIndex];
         
-        const currentQuestion = currentRound[currentQuestionIndex];
+        // Safety check
+        if (currentQuestionIndex >= 5 || !currentPlayerRound || !currentPlayerRound[currentQuestionIndex]) {
+            console.error("Invalid question index or missing question data");
+            return;
+        }
+        
+        const currentQuestion = currentPlayerRound[currentQuestionIndex];
         const userAnswer = guessInput.value.trim().toLowerCase();
         const correctAnswer = currentQuestion.item.toLowerCase();
         const currentPlayer = players[currentPlayerIndex];
@@ -671,11 +737,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show both round score and total if final round
             if (currentRoundNumber === totalRounds) {
                 scoreInfo.innerHTML = `
-                    <span class="round-score">${player.roundScore}/${currentRound.length}</span>
-                    <span class="total-score">Total: ${player.totalScore}/${currentRound.length * totalRounds}</span>
+                    <span class="round-score">${player.roundScore}/5</span>
+                    <span class="total-score">Total: ${player.totalScore}/${5 * totalRounds}</span>
                 `;
             } else {
-                scoreInfo.textContent = `${player.roundScore}/${currentRound.length}`;
+                scoreInfo.textContent = `${player.roundScore}/5`;
             }
             
             scoreItem.appendChild(playerName);
@@ -700,7 +766,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const details = document.createElement('div');
             details.innerHTML = `
-                <strong>Question ${index % currentRound.length + 1}:</strong> ${result.item} (${result.category})<br>
+                <strong>Question ${index % 5 + 1}:</strong> ${result.item} (${result.category})<br>
                 <small>${result.player}: ${result.userAnswer || '(no answer)'}</small>
             `;
             
