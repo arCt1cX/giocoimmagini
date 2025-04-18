@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let roundResults = [];
     let currentRoundNumber = 1;
     let totalRounds = 3;
-    let isLoading = false; // Track if an image is currently loading
     
     // Sound effects (optional)
     const correctSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAqAABHnwAFBwkMDhATFRcaHB8hJCYpKy4wMzU4Ojs+QUNGSEtNUFJVV1pcX2FkZ2lsbnFzdnl7foGDhoiLjZCSlZeanZ+ipKeprK6xtLa5vL7BxMbJy87R09bY293g4uXn6uzu8fP2+fv+AAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAXaAAAAAAAAR5+fSpwoAAAAAAAAAAAAAAAAAAD/+0DEAAP7uuzoYwkAJ3VNOt7Pg3B7QwdgAsK6WTEsxoiWpnrJmDNDIwRtCY+g8BBIiDtHcMjAcMTCYAwCAmDkNzBIBuVP/1QLJcHgBmBYDAQMwNhmAK10MCQCzAzAcGA4AIHBMLTJm0MFgBwYBGCAHA2DphR+kDgCwSAYwFAGDgdHYZ+k14qigAYJgJAQCAAHgKHgRB/+NUB4gFwUAIwHAcS+VQj9rn//1QygNB3C//tAxAcAEn7s8f5iAAp8ZqH/sOAFLVBJ0iNTTy1DIMzIJPLTO3/xAAJDqIvGp9C5wJeJh3+LuH/5EAKjABG2aLu69F3C7sTzAEOwHBUJUNw6gdF36t80QmDIcCCFWXDtF3dF3d4O4nGQXB4MXSKlRuIgouIl3+r/yrVbiyUMDBBwfJcFYuAGTjXqP/7NKtQw2d8qsP/7QMQDARKq0uz+HgCKGFXh/5hQCbgzOYuIcUWkBIKQh/KqgxarILDEoJiYUZSfJjTaZMYU1FMy45OS41VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=');
@@ -46,14 +45,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cache for offline images
     let imageCache = {};
-    
-    // Create loading overlay
-    const loadingOverlay = document.createElement('div');
-    loadingOverlay.className = 'loading-overlay';
-    loadingOverlay.innerHTML = '<div class="spinner"></div>';
-    
-    // Add it to the container but hide it initially
-    document.querySelector('.image-container').appendChild(loadingOverlay);
 
     // Event listeners for game navigation
     openPlayerSetupButton.addEventListener('click', openPlayerSetup);
@@ -68,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
             openPlayerSetup();
         }
     });
-    submitButton.addEventListener('click', handleSubmitGuess);
+    submitButton.addEventListener('click', checkAnswer);
     
     // Player count selection changes the input fields
     playerCountSelect.addEventListener('change', updatePlayerInputs);
@@ -78,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') {
             // Only proceed if there's something typed
             if (guessInput.value.trim() !== '') {
-                handleSubmitGuess();
+                checkAnswer();
             } else {
                 // Show message requiring input
                 feedbackDiv.textContent = "Please enter a guess before submitting!";
@@ -510,27 +501,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Handler for guess submission that checks if we're in loading state
-     */
-    function handleSubmitGuess() {
-        // Prevent submitting while image is still loading
-        if (isLoading) {
-            console.log("Image is still loading, ignoring guess submission");
-            return;
-        }
-        
-        checkAnswer();
-    }
-
-    /**
      * Load the current question
      */
     async function loadQuestion() {
-        // Block guessing and show loading state
-        isLoading = true;
-        loadingOverlay.style.display = 'flex';
-        submitButton.disabled = true;
-        
         // Check if we've gone through all questions for this player
         if (currentQuestionIndex >= 5) {
             // All questions for this player are done
@@ -543,9 +516,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // All players have completed this round
                 showRoundResults();
             }
-            isLoading = false;
-            loadingOverlay.style.display = 'none';
-            submitButton.disabled = false;
             return;
         }
         
@@ -555,9 +525,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Double check we have valid items
         if (!currentPlayerRound || currentPlayerRound.length === 0) {
             console.error("No items found for the current player's round");
-            isLoading = false;
-            loadingOverlay.style.display = 'none';
-            submitButton.disabled = false;
             return;
         }
         
@@ -568,9 +535,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error("Question not found at index", currentQuestionIndex);
             // Skip to the next question
             currentQuestionIndex++;
-            isLoading = false;
-            loadingOverlay.style.display = 'none';
-            submitButton.disabled = false;
             loadQuestion();
             return;
         }
@@ -586,50 +550,34 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
         scoreElement.textContent = players[currentPlayerIndex].roundScores[currentRoundNumber - 1];
         
-        // Hide the image while loading
+        // Load image with fade effect
         gameImage.style.opacity = 0;
         
         try {
-            // Define a function to complete the image loading process
-            const finishLoading = () => {
-                // Show the image
-                gameImage.style.opacity = 1;
-                
-                // Clear and focus on input
-                guessInput.value = '';
-                guessInput.focus();
-                
-                // Hide loading overlay and enable submit button after a small delay
-                setTimeout(() => {
-                    loadingOverlay.style.display = 'none';
-                    submitButton.disabled = false;
-                    isLoading = false;
-                }, 300);
-            };
-            
             // Try to load from cache first
             if (imageCache[currentQuestion.imagePath]) {
                 console.log("Loading image from cache");
                 gameImage.src = imageCache[currentQuestion.imagePath];
                 
-                // Give a little time for the browser to render
-                setTimeout(finishLoading, 200);
+                // Make sure we wait for the fade-in to complete
+                setTimeout(() => {
+                    gameImage.style.opacity = 1;
+                }, 50);
             } else {
                 // Check if the image exists
                 const exists = await checkImageExists(currentQuestion.imagePath);
                 
                 if (exists) {
                     console.log("Image exists, loading it");
-                    
-                    // Use actual image loading event for better reliability
-                    gameImage.onload = function() {
-                        // Cache the image for future use
-                        imageCache[currentQuestion.imagePath] = currentQuestion.imagePath;
-                        finishLoading();
-                    };
-                    
-                    // Set the source to trigger loading
                     gameImage.src = currentQuestion.imagePath;
+                    
+                    // Cache the image for future use
+                    gameImage.onload = function() {
+                        imageCache[currentQuestion.imagePath] = currentQuestion.imagePath;
+                        setTimeout(() => {
+                            gameImage.style.opacity = 1;
+                        }, 50);
+                    };
                 } else {
                     console.warn(`Image not found: ${currentQuestion.imagePath}`);
                     console.log("Generating placeholder image");
@@ -644,8 +592,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     gameImage.src = placeholderDataUrl;
                     imageCache[currentQuestion.imagePath] = placeholderDataUrl;
                     
-                    // Give a little time for the browser to render
-                    setTimeout(finishLoading, 200);
+                    setTimeout(() => {
+                        gameImage.style.opacity = 1;
+                    }, 50);
                 }
             }
         } catch (error) {
@@ -658,20 +607,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             gameImage.src = placeholderDataUrl;
             
-            // Give a little time for the browser to render
             setTimeout(() => {
                 gameImage.style.opacity = 1;
-                
-                // Hide loading overlay and enable submit button
-                loadingOverlay.style.display = 'none';
-                submitButton.disabled = false;
-                isLoading = false;
-                
-                // Clear and focus on input
-                guessInput.value = '';
-                guessInput.focus();
-            }, 200);
+            }, 50);
         }
+        
+        // Clear and focus on input
+        guessInput.value = '';
+        guessInput.focus();
     }
 
     /**
