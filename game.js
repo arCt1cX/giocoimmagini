@@ -59,12 +59,26 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 const data = await response.json();
                 categories = data;
+                console.log("Successfully loaded categories from categories.json");
+                console.log("Categories:", categories);
+                
+                // Pre-check if any image directories exist
+                for (const category of categories) {
+                    try {
+                        // Log that we're checking for this category's directory
+                        console.log(`Checking for directory: img/${category.name}/`);
+                    } catch (e) {
+                        console.warn(`Error checking directory for ${category.name}:`, e);
+                    }
+                }
             } else {
+                console.warn("Could not load categories.json. Using fallback data.");
                 // If categories.json doesn't exist, scan for categories manually
                 await scanCategories();
             }
         } catch (error) {
             console.error('Error initializing game:', error);
+            console.warn("Using fallback data.");
             // Fallback to manual category scanning
             await scanCategories();
         }
@@ -74,6 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * Scan for categories by checking directories in the img folder
      */
     async function scanCategories() {
+        console.log("Scanning for categories...");
         categories = [
             { name: 'actors', items: [] },
             { name: 'monuments', items: [] },
@@ -82,48 +97,110 @@ document.addEventListener('DOMContentLoaded', function() {
             { name: 'cartoons', items: [] }
         ];
         
-        // If we're in a development environment, we could try loading some sample data
-        // In a real deployment, the images would be preloaded in the img folder
-        
-        // For each category, try to load some sample images from the img folder
+        // For each category, try to populate items by checking the img directory
         for (const category of categories) {
-            try {
-                const response = await fetch(`img/${category.name}/index.json`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    category.items = data;
-                } else {
-                    // If no index.json is available, we'll rely on the items being added during game play
-                    console.warn(`No index.json found for ${category.name}`);
-                }
-            } catch (error) {
-                console.warn(`Could not load items for ${category.name}:`, error);
+            // In a web environment, we can't read directories directly
+            // So we'll use a fallback approach:
+            // Try to load a few common items that are likely to exist
+            
+            // We'll manually add some common items for each category
+            switch(category.name) {
+                case 'actors':
+                    category.items = ['Tom Hanks', 'Brad Pitt', 'Leonardo DiCaprio', 'Keanu Reeves', 
+                                      'Scarlett Johansson', 'Robert Downey Jr', 'Meryl Streep'];
+                    break;
+                case 'monuments':
+                    category.items = ['Eiffel Tower', 'Statue of Liberty', 'Colosseum', 'Taj Mahal',
+                                      'Great Wall of China', 'Big Ben', 'Stonehenge'];
+                    break;
+                case 'singers':
+                    category.items = ['Lady Gaga', 'Beyoncé', 'Ed Sheeran', 'Taylor Swift', 
+                                     'Adele', 'Bruno Mars', 'Billie Eilish'];
+                    break;
+                case 'politicians':
+                    category.items = ['Joe Biden', 'Donald Trump', 'Barack Obama', 'Vladimir Putin',
+                                     'Angela Merkel', 'Justin Trudeau', 'Boris Johnson'];
+                    break;
+                case 'cartoons':
+                    category.items = ['Mickey Mouse', 'Homer Simpson', 'SpongeBob SquarePants', 'Bugs Bunny',
+                                     'Scooby-Doo', 'Tom and Jerry', 'Shrek'];
+                    break;
             }
         }
+        
+        console.log("Scanned categories:", categories);
     }
 
     /**
-     * Generate an index of available images by category
+     * Check if an image file exists at the specified path
      */
-    function generateIndex() {
-        // This function would scan the img directories and create a categories.json file
-        // Not needed for the core game functionality, but useful for development
-        console.log('Generating index of available images...');
+    function checkImageExists(imagePath) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = imagePath;
+        });
+    }
+
+    /**
+     * Generate an in-memory placeholder image when a real image is not found
+     */
+    function generatePlaceholderImage(name, category) {
+        // Create a canvas element
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 300;
+        
+        // Get the context
+        const ctx = canvas.getContext('2d');
+        
+        // Fill the background with a light color
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add a border
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+        
+        // Write the category
+        ctx.fillStyle = '#555';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(category.toUpperCase(), canvas.width / 2, 40);
+        
+        // Write the item name
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+        
+        return canvas.toDataURL();
     }
 
     /**
      * Start a new game
      */
     function startGame() {
+        console.log("Starting a new game...");
+        
         // Reset game state
         currentQuestionIndex = 0;
         score = 0;
         roundResults = [];
         currentRound = [];
         
-        // Select random items for this round
-        selectRandomItems();
+        // Check if we have categories data
+        if (!categories || categories.length === 0 || categories.every(cat => !cat.items || cat.items.length === 0)) {
+            console.error("No category data available. Using fallback data.");
+            fallbackItems();
+        } else {
+            // Select random items for this round
+            selectRandomItems();
+        }
+        
+        console.log("Current round items:", currentRound);
         
         // Reset UI
         scoreElement.textContent = score;
@@ -143,101 +220,111 @@ document.addEventListener('DOMContentLoaded', function() {
      * Select random items from different categories for this round
      */
     function selectRandomItems() {
-        // Get all available items from all categories
-        const allItems = [];
+        // Get all categories that have items
+        const validCategories = categories.filter(cat => cat.items && cat.items.length > 0);
         
-        // For development/fallback
-        if (!categories.length || categories.every(cat => cat.items.length === 0)) {
-            // Fallback data for testing if no images are loaded
+        if (validCategories.length === 0) {
+            console.error("No valid categories with items found.");
             fallbackItems();
             return;
         }
         
+        console.log("Valid categories for selection:", validCategories.map(c => c.name));
+        
         // Sort categories by number of items (descending)
-        const sortedCategories = [...categories].sort((a, b) => b.items.length - a.items.length);
+        const sortedCategories = [...validCategories].sort((a, b) => b.items.length - a.items.length);
         
-        // Select one item from each category that has items
-        const selectedCategories = [];
-        
+        // Try to select one item from each category first
         for (const category of sortedCategories) {
-            if (category.items.length > 0 && currentRound.length < 5) {
+            if (currentRound.length < 5) {
                 const randomIndex = Math.floor(Math.random() * category.items.length);
                 const item = category.items[randomIndex];
+                
+                // Create the file path
+                const imagePath = `img/${category.name}/${item.replace(/ /g, '_').toLowerCase()}.jpg`;
                 
                 currentRound.push({
                     category: category.name,
                     item: item,
-                    imagePath: `img/${category.name}/${item.replace(/ /g, '_')}.jpg`
+                    imagePath: imagePath
                 });
-                
-                selectedCategories.push(category.name);
             }
             
             if (currentRound.length >= 5) break;
         }
         
-        // If we still need more items, select from any category
+        // If we don't have 5 items yet, add more from any category
         if (currentRound.length < 5) {
-            for (const category of sortedCategories) {
-                if (category.items.length > 0) {
-                    while (currentRound.length < 5) {
-                        const randomIndex = Math.floor(Math.random() * category.items.length);
-                        const item = category.items[randomIndex];
-                        
-                        // Check if this item is already selected
-                        const alreadySelected = currentRound.some(
-                            selected => selected.category === category.name && selected.item === item
-                        );
-                        
-                        if (!alreadySelected) {
-                            currentRound.push({
-                                category: category.name,
-                                item: item,
-                                imagePath: `img/${category.name}/${item.replace(/ /g, '_')}.jpg`
-                            });
-                        }
-                        
-                        if (currentRound.length >= 5) break;
-                    }
+            // Keep track of items we've already chosen
+            const chosenItems = currentRound.map(item => `${item.category}-${item.item}`);
+            
+            // Continue adding items until we have 5 or run out of unique items
+            while (currentRound.length < 5) {
+                // Randomly select a category
+                const categoryIndex = Math.floor(Math.random() * validCategories.length);
+                const category = validCategories[categoryIndex];
+                
+                // Randomly select an item from that category
+                const itemIndex = Math.floor(Math.random() * category.items.length);
+                const item = category.items[itemIndex];
+                
+                // Check if this item is already in our round
+                const itemKey = `${category.name}-${item}`;
+                if (!chosenItems.includes(itemKey)) {
+                    chosenItems.push(itemKey);
+                    
+                    // Create the file path
+                    const imagePath = `img/${category.name}/${item.replace(/ /g, '_').toLowerCase()}.jpg`;
+                    
+                    currentRound.push({
+                        category: category.name,
+                        item: item,
+                        imagePath: imagePath
+                    });
                 }
                 
-                if (currentRound.length >= 5) break;
+                // If we've tried all possible items, break to avoid infinite loop
+                if (chosenItems.length >= validCategories.reduce((sum, cat) => sum + cat.items.length, 0)) {
+                    break;
+                }
             }
         }
         
         // Shuffle the round
         shuffleArray(currentRound);
+        console.log("Selected items for this round:", currentRound);
     }
 
     /**
      * Fallback items for testing when no images are available
      */
     function fallbackItems() {
-        // Sample data for testing without images
+        console.log("Using fallback items for the game round");
+        
         currentRound = [
             {
                 category: 'actors',
-                item: 'keanu reeves',
+                item: 'Keanu Reeves',
                 imagePath: 'img/actors/keanu_reeves.jpg'
             },
             {
                 category: 'monuments',
-                item: 'eiffel tower',
+                item: 'Eiffel Tower',
                 imagePath: 'img/monuments/eiffel_tower.jpg'
             },
             {
                 category: 'singers',
-                item: 'lady gaga',
+                item: 'Lady Gaga',
                 imagePath: 'img/singers/lady_gaga.jpg'
             },
             {
                 category: 'politicians',
-                item: 'joe biden',
+                item: 'Joe Biden',
                 imagePath: 'img/politicians/joe_biden.jpg'
             },
             {
                 category: 'cartoons',
-                item: 'homer simpson',
+                item: 'Homer Simpson',
                 imagePath: 'img/cartoons/homer_simpson.jpg'
             }
         ];
@@ -249,13 +336,15 @@ document.addEventListener('DOMContentLoaded', function() {
     /**
      * Load the current question
      */
-    function loadQuestion() {
+    async function loadQuestion() {
         if (currentQuestionIndex >= currentRound.length) {
             showResults();
             return;
         }
         
         const currentQuestion = currentRound[currentQuestionIndex];
+        console.log(`Loading question ${currentQuestionIndex + 1}: ${currentQuestion.item} (${currentQuestion.category})`);
+        console.log(`Image path: ${currentQuestion.imagePath}`);
         
         // Clear previous feedback
         feedbackDiv.classList.add('hidden');
@@ -266,26 +355,51 @@ document.addEventListener('DOMContentLoaded', function() {
         // Load image with fade effect
         gameImage.style.opacity = 0;
         
-        // Try to load from cache first
-        if (imageCache[currentQuestion.imagePath]) {
-            gameImage.src = imageCache[currentQuestion.imagePath];
+        try {
+            // Try to load from cache first
+            if (imageCache[currentQuestion.imagePath]) {
+                console.log("Loading image from cache");
+                gameImage.src = imageCache[currentQuestion.imagePath];
+                gameImage.style.opacity = 1;
+            } else {
+                // Check if the image exists
+                const exists = await checkImageExists(currentQuestion.imagePath);
+                
+                if (exists) {
+                    console.log("Image exists, loading it");
+                    gameImage.src = currentQuestion.imagePath;
+                    
+                    // Cache the image for future use
+                    gameImage.onload = function() {
+                        imageCache[currentQuestion.imagePath] = currentQuestion.imagePath;
+                        gameImage.style.opacity = 1;
+                    };
+                } else {
+                    console.warn(`Image not found: ${currentQuestion.imagePath}`);
+                    console.log("Generating placeholder image");
+                    
+                    // Generate placeholder image
+                    const placeholderDataUrl = generatePlaceholderImage(
+                        currentQuestion.item, 
+                        currentQuestion.category
+                    );
+                    
+                    // Use the placeholder
+                    gameImage.src = placeholderDataUrl;
+                    imageCache[currentQuestion.imagePath] = placeholderDataUrl;
+                    gameImage.style.opacity = 1;
+                }
+            }
+        } catch (error) {
+            console.error("Error loading image:", error);
+            // Create a placeholder as fallback
+            const placeholderDataUrl = generatePlaceholderImage(
+                currentQuestion.item, 
+                currentQuestion.category
+            );
+            
+            gameImage.src = placeholderDataUrl;
             gameImage.style.opacity = 1;
-        } else {
-            // If not in cache, load from file system
-            gameImage.src = currentQuestion.imagePath;
-            
-            // Cache the image for future use
-            gameImage.onload = function() {
-                imageCache[currentQuestion.imagePath] = currentQuestion.imagePath;
-                gameImage.style.opacity = 1;
-            };
-            
-            // Handle image loading errors
-            gameImage.onerror = function() {
-                // Use a placeholder image if the actual image can't be loaded
-                gameImage.src = `https://via.placeholder.com/400x300?text=Image+Not+Found+For+${currentQuestion.category}`;
-                gameImage.style.opacity = 1;
-            };
         }
         
         // Clear and focus on input
@@ -303,6 +417,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const userAnswer = guessInput.value.trim().toLowerCase();
         const correctAnswer = currentQuestion.item.toLowerCase();
         
+        console.log(`Checking answer: "${userAnswer}" against "${correctAnswer}"`);
+        
         // Simple string normalization for comparison
         const normalizedUserAnswer = userAnswer.replace(/[^a-z0-9]/gi, '');
         const normalizedCorrectAnswer = correctAnswer.replace(/[^a-z0-9]/gi, '');
@@ -312,6 +428,8 @@ document.addEventListener('DOMContentLoaded', function() {
                          correctAnswer.includes(userAnswer) || 
                          normalizedCorrectAnswer.includes(normalizedUserAnswer) || 
                          (normalizedUserAnswer.length > 3 && normalizedCorrectAnswer.includes(normalizedUserAnswer));
+        
+        console.log(`Answer is ${isCorrect ? 'correct' : 'incorrect'}`);
         
         // Show feedback
         feedbackDiv.textContent = isCorrect 
