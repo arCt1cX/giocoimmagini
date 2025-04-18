@@ -67,7 +67,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Also allow Enter key to submit answers
     guessInput.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
-            checkAnswer();
+            // Only proceed if there's something typed
+            if (guessInput.value.trim() !== '') {
+                checkAnswer();
+            } else {
+                // Show message requiring input
+                feedbackDiv.textContent = "Please enter a guess before submitting!";
+                feedbackDiv.className = "feedback incorrect";
+                feedbackDiv.classList.remove("hidden");
+                guessInput.focus();
+            }
         }
     });
 
@@ -622,6 +631,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const currentQuestion = currentPlayerRound[currentQuestionIndex];
         const userAnswer = guessInput.value.trim().toLowerCase();
+        
+        // Require the user to type something before submitting
+        if (!userAnswer) {
+            // Alert the user they need to enter a guess
+            feedbackDiv.textContent = "Please enter a guess before submitting!";
+            feedbackDiv.className = "feedback incorrect";
+            feedbackDiv.classList.remove("hidden");
+            
+            // Focus on the input field
+            guessInput.focus();
+            return;
+        }
+        
         const correctAnswer = currentQuestion.item.toLowerCase();
         const currentPlayer = players[currentPlayerIndex];
         
