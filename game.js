@@ -550,53 +550,134 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
         scoreElement.textContent = players[currentPlayerIndex].roundScores[currentRoundNumber - 1];
         
+        // Disable submit button and input while image is loading
+        submitButton.disabled = true;
+        guessInput.disabled = true;
+        guessInput.value = '';
+        
+        // Set a loading indicator class on the image container
+        const imageContainer = document.querySelector('.image-container');
+        imageContainer.classList.add('loading');
+        
         // Load image with fade effect
         gameImage.style.opacity = 0;
         
         try {
-            // Try to load from cache first
-            if (imageCache[currentQuestion.imagePath]) {
-                console.log("Loading image from cache");
-                gameImage.src = imageCache[currentQuestion.imagePath];
+            // Create a promise that will resolve when the image is fully loaded and displayed
+            const loadImagePromise = new Promise((resolve) => {
+                let imageLoaded = false;
                 
-                // Make sure we wait for the fade-in to complete
-                setTimeout(() => {
-                    gameImage.style.opacity = 1;
-                }, 50);
-            } else {
-                // Check if the image exists
-                const exists = await checkImageExists(currentQuestion.imagePath);
-                
-                if (exists) {
-                    console.log("Image exists, loading it");
-                    gameImage.src = currentQuestion.imagePath;
+                // Try to load from cache first
+                if (imageCache[currentQuestion.imagePath]) {
+                    console.log("Loading image from cache");
+                    gameImage.src = imageCache[currentQuestion.imagePath];
                     
-                    // Cache the image for future use
-                    gameImage.onload = function() {
-                        imageCache[currentQuestion.imagePath] = currentQuestion.imagePath;
+                    // Use a proper onload handler for cached images too
+                    gameImage.onload = () => {
+                        console.log("Cached image loaded successfully");
+                        imageLoaded = true;
+                        // Fade in the image
                         setTimeout(() => {
                             gameImage.style.opacity = 1;
-                        }, 50);
+                            imageContainer.classList.remove('loading');
+                            // Enable inputs after image is visible
+                            setTimeout(() => {
+                                submitButton.disabled = false;
+                                guessInput.disabled = false;
+                                guessInput.focus();
+                                resolve();
+                            }, 300);
+                        }, 100);
                     };
-                } else {
-                    console.warn(`Image not found: ${currentQuestion.imagePath}`);
-                    console.log("Generating placeholder image");
                     
-                    // Generate placeholder image
-                    const placeholderDataUrl = generatePlaceholderImage(
-                        currentQuestion.item, 
-                        currentQuestion.category
-                    );
-                    
-                    // Use the placeholder
-                    gameImage.src = placeholderDataUrl;
-                    imageCache[currentQuestion.imagePath] = placeholderDataUrl;
-                    
+                    // Safety timeout in case onload doesn't fire
                     setTimeout(() => {
-                        gameImage.style.opacity = 1;
-                    }, 50);
+                        if (!imageLoaded) {
+                            console.log("Fallback timeout for cached image");
+                            gameImage.style.opacity = 1;
+                            imageContainer.classList.remove('loading');
+                            submitButton.disabled = false;
+                            guessInput.disabled = false;
+                            guessInput.focus();
+                            resolve();
+                        }
+                    }, 1000);
+                } else {
+                    // Check if the image exists
+                    checkImageExists(currentQuestion.imagePath).then(exists => {
+                        if (exists) {
+                            console.log("Image exists, loading it");
+                            gameImage.src = currentQuestion.imagePath;
+                            
+                            // Cache the image for future use
+                            gameImage.onload = function() {
+                                console.log("Image loaded successfully");
+                                imageLoaded = true;
+                                imageCache[currentQuestion.imagePath] = currentQuestion.imagePath;
+                                
+                                // Fade in the image
+                                setTimeout(() => {
+                                    gameImage.style.opacity = 1;
+                                    imageContainer.classList.remove('loading');
+                                    // Enable inputs after image is visible
+                                    setTimeout(() => {
+                                        submitButton.disabled = false;
+                                        guessInput.disabled = false;
+                                        guessInput.focus();
+                                        resolve();
+                                    }, 300);
+                                }, 100);
+                            };
+                            
+                            // Safety timeout in case onload doesn't fire
+                            setTimeout(() => {
+                                if (!imageLoaded) {
+                                    console.log("Fallback timeout for image load");
+                                    gameImage.style.opacity = 1;
+                                    imageContainer.classList.remove('loading');
+                                    submitButton.disabled = false;
+                                    guessInput.disabled = false;
+                                    guessInput.focus();
+                                    resolve();
+                                }
+                            }, 2000);
+                        } else {
+                            console.warn(`Image not found: ${currentQuestion.imagePath}`);
+                            console.log("Generating placeholder image");
+                            
+                            // Generate placeholder image
+                            const placeholderDataUrl = generatePlaceholderImage(
+                                currentQuestion.item, 
+                                currentQuestion.category
+                            );
+                            
+                            // Use the placeholder
+                            gameImage.src = placeholderDataUrl;
+                            imageCache[currentQuestion.imagePath] = placeholderDataUrl;
+                            
+                            // Placeholder images don't need onload, but we'll add a delay for consistency
+                            setTimeout(() => {
+                                console.log("Placeholder image ready");
+                                gameImage.style.opacity = 1;
+                                imageContainer.classList.remove('loading');
+                                
+                                // Enable inputs after image is visible
+                                setTimeout(() => {
+                                    submitButton.disabled = false;
+                                    guessInput.disabled = false;
+                                    guessInput.focus();
+                                    resolve();
+                                }, 300);
+                            }, 200);
+                        }
+                    });
                 }
-            }
+            });
+            
+            // Wait for the image to be fully loaded and displayed
+            await loadImagePromise;
+            console.log("Image loading completed, question ready for user input");
+            
         } catch (error) {
             console.error("Error loading image:", error);
             // Create a placeholder as fallback
@@ -607,14 +688,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             gameImage.src = placeholderDataUrl;
             
+            // Ensure the placeholder is shown and inputs are enabled
             setTimeout(() => {
                 gameImage.style.opacity = 1;
-            }, 50);
+                imageContainer.classList.remove('loading');
+                submitButton.disabled = false;
+                guessInput.disabled = false;
+                guessInput.focus();
+            }, 300);
         }
-        
-        // Clear and focus on input
-        guessInput.value = '';
-        guessInput.focus();
     }
 
     /**
