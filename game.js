@@ -64,10 +64,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Player count selection changes the input fields
     playerCountSelect.addEventListener('change', updatePlayerInputs);
     
-    // Also allow Enter key to submit answers
-    guessInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') {
-            // Only proceed if there's something typed
+    // Handle Enter key press
+    guessInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter' && !submitButton.disabled) {
+            // Only check answer if the submit button is not disabled
+            // and there's text in the input
             if (guessInput.value.trim() !== '') {
                 checkAnswer();
             } else {
@@ -79,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-
+    
     // Initialize the game
     initGame();
 
@@ -501,6 +502,105 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Check if the user's answer is correct
+     */
+    function checkAnswer() {
+        // Get the current player's round items
+        const currentPlayerRound = playerRounds[currentPlayerIndex];
+        
+        // Safety check
+        if (currentQuestionIndex >= 5 || !currentPlayerRound || !currentPlayerRound[currentQuestionIndex]) {
+            console.error("Invalid question index or missing question data");
+            return;
+        }
+        
+        // Disable the submit button to prevent multiple submissions
+        submitButton.disabled = true;
+        submitButton.style.opacity = "0.5";
+        submitButton.style.cursor = "not-allowed";
+        
+        const currentQuestion = currentPlayerRound[currentQuestionIndex];
+        const userAnswer = guessInput.value.trim().toLowerCase();
+        
+        // Require the user to type something before submitting
+        if (!userAnswer) {
+            // Alert the user they need to enter a guess
+            feedbackDiv.textContent = "Please enter a guess before submitting!";
+            feedbackDiv.className = "feedback incorrect";
+            feedbackDiv.classList.remove("hidden");
+            
+            // Focus on the input field
+            guessInput.focus();
+            
+            // Re-enable the submit button
+            submitButton.disabled = false;
+            submitButton.style.opacity = "1";
+            submitButton.style.cursor = "pointer";
+            
+            return;
+        }
+        
+        const correctAnswer = currentQuestion.item.toLowerCase();
+        const currentPlayer = players[currentPlayerIndex];
+        
+        console.log(`Checking answer from ${currentPlayer.name}: "${userAnswer}" against "${correctAnswer}"`);
+        
+        // Simple string normalization for comparison
+        const normalizedUserAnswer = userAnswer.replace(/[^a-z0-9]/gi, '');
+        const normalizedCorrectAnswer = correctAnswer.replace(/[^a-z0-9]/gi, '');
+        
+        // Check if the answer is correct (allowing for some flexibility)
+        const isCorrect = normalizedUserAnswer === normalizedCorrectAnswer || 
+                         correctAnswer.includes(userAnswer) || 
+                         normalizedCorrectAnswer.includes(normalizedUserAnswer) || 
+                         (normalizedUserAnswer.length > 3 && normalizedCorrectAnswer.includes(normalizedUserAnswer));
+        
+        console.log(`Answer is ${isCorrect ? 'correct' : 'incorrect'}`);
+        
+        // Show feedback
+        feedbackDiv.textContent = isCorrect 
+            ? `Correct! It's ${currentQuestion.item}` 
+            : `Incorrect. It was ${currentQuestion.item}`;
+        
+        feedbackDiv.className = isCorrect ? 'feedback correct' : 'feedback incorrect';
+        feedbackDiv.classList.remove('hidden');
+        
+        // Play sound if available
+        if (isCorrect) {
+            correctSound.play().catch(e => console.log('Sound play error:', e));
+        } else {
+            incorrectSound.play().catch(e => console.log('Sound play error:', e));
+        }
+        
+        // Update score if correct
+        if (isCorrect) {
+            // Update the score for the current round
+            currentPlayer.roundScores[currentRoundNumber - 1]++;
+            // Update total score
+            currentPlayer.score++;
+            // Update display
+            scoreElement.textContent = currentPlayer.roundScores[currentRoundNumber - 1];
+        }
+        
+        // Save the result for the summary
+        roundResults.push({
+            round: currentRoundNumber,
+            item: currentQuestion.item,
+            category: currentQuestion.category,
+            imagePath: currentQuestion.imagePath,
+            userAnswer: userAnswer,
+            isCorrect: isCorrect,
+            player: currentPlayer.name
+        });
+        
+        // Move to the next question after a short delay
+        setTimeout(() => {
+            currentQuestionIndex++;
+            loadQuestion();
+        }, 1500);
+    }
+    
+    /**
      * Load the current question
      */
     async function loadQuestion() {
@@ -518,6 +618,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return;
         }
+        
+        // Enable the submit button for the new question
+        submitButton.disabled = false;
+        submitButton.style.opacity = "1";
+        submitButton.style.cursor = "pointer";
         
         // Get the current player's round items
         const currentPlayerRound = playerRounds[currentPlayerIndex];
@@ -615,94 +720,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear and focus on input
         guessInput.value = '';
         guessInput.focus();
-    }
-
-    /**
-     * Check if the user's answer is correct
-     */
-    function checkAnswer() {
-        // Get the current player's round items
-        const currentPlayerRound = playerRounds[currentPlayerIndex];
-        
-        // Safety check
-        if (currentQuestionIndex >= 5 || !currentPlayerRound || !currentPlayerRound[currentQuestionIndex]) {
-            console.error("Invalid question index or missing question data");
-            return;
-        }
-        
-        const currentQuestion = currentPlayerRound[currentQuestionIndex];
-        const userAnswer = guessInput.value.trim().toLowerCase();
-        
-        // Require the user to type something before submitting
-        if (!userAnswer) {
-            // Alert the user they need to enter a guess
-            feedbackDiv.textContent = "Please enter a guess before submitting!";
-            feedbackDiv.className = "feedback incorrect";
-            feedbackDiv.classList.remove("hidden");
-            
-            // Focus on the input field
-            guessInput.focus();
-            return;
-        }
-        
-        const correctAnswer = currentQuestion.item.toLowerCase();
-        const currentPlayer = players[currentPlayerIndex];
-        
-        console.log(`Checking answer from ${currentPlayer.name}: "${userAnswer}" against "${correctAnswer}"`);
-        
-        // Simple string normalization for comparison
-        const normalizedUserAnswer = userAnswer.replace(/[^a-z0-9]/gi, '');
-        const normalizedCorrectAnswer = correctAnswer.replace(/[^a-z0-9]/gi, '');
-        
-        // Check if the answer is correct (allowing for some flexibility)
-        const isCorrect = normalizedUserAnswer === normalizedCorrectAnswer || 
-                         correctAnswer.includes(userAnswer) || 
-                         normalizedCorrectAnswer.includes(normalizedUserAnswer) || 
-                         (normalizedUserAnswer.length > 3 && normalizedCorrectAnswer.includes(normalizedUserAnswer));
-        
-        console.log(`Answer is ${isCorrect ? 'correct' : 'incorrect'}`);
-        
-        // Show feedback
-        feedbackDiv.textContent = isCorrect 
-            ? `Correct! It's ${currentQuestion.item}` 
-            : `Incorrect. It was ${currentQuestion.item}`;
-        
-        feedbackDiv.className = isCorrect ? 'feedback correct' : 'feedback incorrect';
-        feedbackDiv.classList.remove('hidden');
-        
-        // Play sound if available
-        if (isCorrect) {
-            correctSound.play().catch(e => console.log('Sound play error:', e));
-        } else {
-            incorrectSound.play().catch(e => console.log('Sound play error:', e));
-        }
-        
-        // Update score if correct
-        if (isCorrect) {
-            // Update the score for the current round
-            currentPlayer.roundScores[currentRoundNumber - 1]++;
-            // Update total score
-            currentPlayer.score++;
-            // Update display
-            scoreElement.textContent = currentPlayer.roundScores[currentRoundNumber - 1];
-        }
-        
-        // Save the result for the summary
-        roundResults.push({
-            round: currentRoundNumber,
-            item: currentQuestion.item,
-            category: currentQuestion.category,
-            imagePath: currentQuestion.imagePath,
-            userAnswer: userAnswer,
-            isCorrect: isCorrect,
-            player: currentPlayer.name
-        });
-        
-        // Move to the next question after a short delay
-        setTimeout(() => {
-            currentQuestionIndex++;
-            loadQuestion();
-        }, 1500);
     }
 
     /**
