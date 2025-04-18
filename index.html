@@ -35,9 +35,17 @@
             </div>
             
             <div class="buttons-row">
-                <button id="back-to-menu">Back</button>
-                <button id="start-game">Start Game</button>
+                <button id="start-game" class="full-width-button">Start Game</button>
             </div>
+        </div>
+
+        <div id="player-transition-screen" class="screen hidden">
+            <h2>Get Ready!</h2>
+            <div class="next-player-info">
+                <h3><span id="next-player-name">Player 2</span>'s Turn</h3>
+                <p>Pass the device to the next player</p>
+            </div>
+            <button id="start-player-turn" class="full-width-button">I'm Ready!</button>
         </div>
 
         <div id="game-screen" class="screen hidden">
@@ -45,6 +53,10 @@
                 <div class="score">Score: <span id="score">0</span>/5</div>
                 <div class="current-player">Player: <span id="current-player-name">Player 1</span></div>
                 <div class="timer">Time: <span id="time-remaining">60</span>s</div>
+            </div>
+
+            <div class="category-display">
+                Category: <span id="current-category">Unknown</span>
             </div>
 
             <div class="image-container">

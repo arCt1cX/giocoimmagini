@@ -7,16 +7,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Game elements
     const startScreen = document.getElementById('start-screen');
     const playerSetupScreen = document.getElementById('player-setup-screen');
+    const playerTransitionScreen = document.getElementById('player-transition-screen');
     const gameScreen = document.getElementById('game-screen');
     const resultScreen = document.getElementById('result-screen');
     
     const openPlayerSetupButton = document.getElementById('open-player-setup');
-    const backToMenuButton = document.getElementById('back-to-menu');
     const startButton = document.getElementById('start-game');
     const playAgainButton = document.getElementById('play-again');
     const submitButton = document.getElementById('submit-guess');
     const prevImageButton = document.getElementById('prev-image');
     const nextImageButton = document.getElementById('next-image');
+    const startPlayerTurnButton = document.getElementById('start-player-turn');
     
     const playerCountSelect = document.getElementById('player-count');
     const playerNamesContainer = document.getElementById('player-names-container');
@@ -26,11 +27,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const feedbackDiv = document.getElementById('feedback');
     const scoreElement = document.getElementById('score');
     const currentPlayerNameElement = document.getElementById('current-player-name');
+    const nextPlayerNameElement = document.getElementById('next-player-name');
     const playerScoresElement = document.getElementById('player-scores');
     const currentQuestionElement = document.getElementById('current-question');
     const resultDetailsElement = document.getElementById('result-details');
     const timeRemainingElement = document.getElementById('time-remaining');
     const indicatorCircles = document.querySelectorAll('.circle');
+    const currentCategoryElement = document.getElementById('current-category');
 
     // Game state
     let categories = [];
@@ -55,7 +58,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Event listeners for game navigation
     openPlayerSetupButton.addEventListener('click', openPlayerSetup);
-    backToMenuButton.addEventListener('click', goBackToMenu);
     startButton.addEventListener('click', startGame);
     playAgainButton.addEventListener('click', () => {
         // Start a new round or go back to player setup if all rounds are finished
@@ -69,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
     submitButton.addEventListener('click', checkAnswer);
     prevImageButton.addEventListener('click', navigateToPreviousImage);
     nextImageButton.addEventListener('click', navigateToNextImage);
+    startPlayerTurnButton.addEventListener('click', startCurrentPlayerTurn);
     
     // Add click listeners to indicator circles for navigation
     indicatorCircles.forEach((circle, index) => {
@@ -140,6 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function openPlayerSetup() {
         startScreen.classList.add('hidden');
         resultScreen.classList.add('hidden');
+        playerTransitionScreen.classList.add('hidden');
         playerSetupScreen.classList.remove('hidden');
         
         // Reset round number
@@ -151,11 +155,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     /**
-     * Go back to the main menu
+     * Show the player transition screen
      */
-    function goBackToMenu() {
-        playerSetupScreen.classList.add('hidden');
-        startScreen.classList.remove('hidden');
+    function showPlayerTransition(playerIndex) {
+        // Update next player name
+        nextPlayerNameElement.textContent = players[playerIndex].name;
+        
+        // Hide game screen and show transition screen
+        gameScreen.classList.add('hidden');
+        playerTransitionScreen.classList.remove('hidden');
+    }
+    
+    /**
+     * Start the current player's turn after transition
+     */
+    function startCurrentPlayerTurn() {
+        // Hide transition screen and show game screen
+        playerTransitionScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        
+        // Begin the round for the current player
+        startRound();
     }
     
     /**
@@ -666,8 +686,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (currentPlayerIndex < players.length - 1) {
                     // Move to the next player
                     currentPlayerIndex++;
-                    currentQuestionIndex = 0;
-                    startRound();
+                    // Show player transition screen
+                    showPlayerTransition(currentPlayerIndex);
                 } else {
                     // All players have completed this round
                     showRoundResults();
@@ -839,6 +859,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (questionStatuses[currentQuestionIndex] === null && resetTimer) {
                 guessInput.focus();
             }
+        }
+        
+        // Update category display
+        if (currentQuestion && currentQuestion.category) {
+            currentCategoryElement.textContent = currentQuestion.category;
+        } else {
+            currentCategoryElement.textContent = 'Unknown';
         }
     }
 
@@ -1083,8 +1110,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentPlayerIndex < players.length - 1) {
                 // Move to the next player
                 currentPlayerIndex++;
-                currentQuestionIndex = 0;
-                startRound();
+                // Show player transition screen instead of immediately starting
+                showPlayerTransition(currentPlayerIndex);
             } else {
                 // All players have completed this round
                 showRoundResults();
