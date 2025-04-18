@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Guessing Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <meta name="description" content="A fun image guessing game across different categories">
+</head>
+<body>
+    <div class="container">
+        <div id="start-screen" class="screen">
+            <h1>Image Guessing Game</h1>
+            <p>Try to guess what's in the images!</p>
+            <button id="start-game">Start Game</button>
+        </div>
+
+        <div id="game-screen" class="screen hidden">
+            <div class="game-header">
+                <div class="score">Score: <span id="score">0</span>/5</div>
+                <div class="progress">Question <span id="current-question">1</span> of 5</div>
+            </div>
+
+            <div class="image-container">
+                <img id="game-image" src="" alt="Guess what this is">
+            </div>
+
+            <div class="guess-container">
+                <input type="text" id="guess-input" placeholder="Enter your guess...">
+                <button id="submit-guess">Submit</button>
+            </div>
+
+            <div id="feedback" class="feedback hidden"></div>
+        </div>
+
+        <div id="result-screen" class="screen hidden">
+            <h2>Game Over!</h2>
+            <p>Your final score is: <span id="final-score">0</span>/5</p>
+            <div id="result-details"></div>
+            <button id="play-again">Play Again</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html> 
