@@ -161,10 +161,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const input = document.createElement('input');
             input.setAttribute('type', 'text');
             input.setAttribute('id', `player${i}-name`);
-            input.setAttribute('placeholder', 'Enter name...');
+            input.setAttribute('placeholder', `Player ${i}`);
             
-            // Set default name
-            input.value = `Player ${i}`;
+            // Don't prefill the name, just use placeholder
+            input.value = '';
             
             playerInput.appendChild(label);
             playerInput.appendChild(input);
@@ -277,6 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         for (let i = 1; i <= playerCount; i++) {
             const nameInput = document.getElementById(`player${i}-name`);
+            // Use the placeholder text as default if no name is provided
             const playerName = nameInput.value.trim() || `Player ${i}`;
             
             const player = {
