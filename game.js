@@ -238,8 +238,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function generatePlaceholderImage(name, category) {
         // Create a canvas element
         const canvas = document.createElement('canvas');
-        canvas.width = 400;
-        canvas.height = 300;
+        canvas.width = 600;  // Increased from 400
+        canvas.height = 450; // Increased from 300
         
         // Get the context
         const ctx = canvas.getContext('2d');
@@ -250,20 +250,33 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add a border
         ctx.strokeStyle = '#ccc';
-        ctx.lineWidth = 5;
-        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+        ctx.lineWidth = 8;  // Increased from 5
+        ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
         
         // Write the category
         ctx.fillStyle = '#555';
-        ctx.font = 'bold 20px Arial';
+        ctx.font = 'bold 28px Arial';  // Increased from 20px
         ctx.textAlign = 'center';
-        ctx.fillText(category.toUpperCase(), canvas.width / 2, 40);
+        ctx.fillText(category.toUpperCase(), canvas.width / 2, 60);  // Adjusted position
         
         // Write the item name
         ctx.fillStyle = '#333';
-        ctx.font = 'bold 30px Arial';
+        ctx.font = 'bold 42px Arial';  // Increased from 30px
         ctx.textAlign = 'center';
-        ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+        
+        // Handle long names by splitting them if needed
+        const words = name.split(' ');
+        if (words.length > 3) {
+            // For very long names, split into multiple lines
+            const firstLine = words.slice(0, Math.ceil(words.length / 2)).join(' ');
+            const secondLine = words.slice(Math.ceil(words.length / 2)).join(' ');
+            
+            ctx.fillText(firstLine, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText(secondLine, canvas.width / 2, canvas.height / 2 + 40);
+        } else {
+            // For shorter names, just center them
+            ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+        }
         
         return canvas.toDataURL();
     }
