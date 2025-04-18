@@ -12,12 +12,38 @@
         <div id="start-screen" class="screen">
             <h1>Image Guessing Game</h1>
             <p>Try to guess what's in the images!</p>
-            <button id="start-game">Start Game</button>
+            <button id="open-player-setup">Start Game</button>
+        </div>
+
+        <div id="player-setup-screen" class="screen hidden">
+            <h2>Player Setup</h2>
+            <div class="player-setup-controls">
+                <label for="player-count">Number of Players:</label>
+                <select id="player-count">
+                    <option value="1">1 Player</option>
+                    <option value="2">2 Players</option>
+                    <option value="3">3 Players</option>
+                    <option value="4">4 Players</option>
+                </select>
+            </div>
+            
+            <div id="player-names-container" class="player-names-container">
+                <div class="player-input">
+                    <label for="player1-name">Player 1:</label>
+                    <input type="text" id="player1-name" placeholder="Enter name...">
+                </div>
+            </div>
+            
+            <div class="buttons-row">
+                <button id="back-to-menu">Back</button>
+                <button id="start-game">Start Game</button>
+            </div>
         </div>
 
         <div id="game-screen" class="screen hidden">
             <div class="game-header">
                 <div class="score">Score: <span id="score">0</span>/5</div>
+                <div class="current-player">Player: <span id="current-player-name">Player 1</span></div>
                 <div class="progress">Question <span id="current-question">1</span> of 5</div>
             </div>
 
@@ -35,7 +61,7 @@
 
         <div id="result-screen" class="screen hidden">
             <h2>Game Over!</h2>
-            <p>Your final score is: <span id="final-score">0</span>/5</p>
+            <div id="player-scores"></div>
             <div id="result-details"></div>
             <button id="play-again">Play Again</button>
         </div>

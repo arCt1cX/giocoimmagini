@@ -6,16 +6,25 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Game elements
     const startScreen = document.getElementById('start-screen');
+    const playerSetupScreen = document.getElementById('player-setup-screen');
     const gameScreen = document.getElementById('game-screen');
     const resultScreen = document.getElementById('result-screen');
+    
+    const openPlayerSetupButton = document.getElementById('open-player-setup');
+    const backToMenuButton = document.getElementById('back-to-menu');
     const startButton = document.getElementById('start-game');
     const playAgainButton = document.getElementById('play-again');
     const submitButton = document.getElementById('submit-guess');
+    
+    const playerCountSelect = document.getElementById('player-count');
+    const playerNamesContainer = document.getElementById('player-names-container');
+    
     const guessInput = document.getElementById('guess-input');
     const gameImage = document.getElementById('game-image');
     const feedbackDiv = document.getElementById('feedback');
     const scoreElement = document.getElementById('score');
-    const finalScoreElement = document.getElementById('final-score');
+    const currentPlayerNameElement = document.getElementById('current-player-name');
+    const playerScoresElement = document.getElementById('player-scores');
     const currentQuestionElement = document.getElementById('current-question');
     const resultDetailsElement = document.getElementById('result-details');
 
@@ -23,7 +32,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let categories = [];
     let currentRound = [];
     let currentQuestionIndex = 0;
-    let score = 0;
+    let currentPlayerIndex = 0;
+    let players = [];
     let roundResults = [];
     
     // Sound effects (optional)
@@ -33,10 +43,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cache for offline images
     let imageCache = {};
 
-    // Start game when button is clicked
+    // Event listeners for game navigation
+    openPlayerSetupButton.addEventListener('click', openPlayerSetup);
+    backToMenuButton.addEventListener('click', goBackToMenu);
     startButton.addEventListener('click', startGame);
-    playAgainButton.addEventListener('click', startGame);
+    playAgainButton.addEventListener('click', openPlayerSetup);
     submitButton.addEventListener('click', checkAnswer);
+    
+    // Player count selection changes the input fields
+    playerCountSelect.addEventListener('change', updatePlayerInputs);
     
     // Also allow Enter key to submit answers
     guessInput.addEventListener('keyup', (e) => {
@@ -81,6 +96,56 @@ document.addEventListener('DOMContentLoaded', function() {
             console.warn("Using fallback data.");
             // Fallback to manual category scanning
             await scanCategories();
+        }
+    }
+
+    /**
+     * Open the player setup screen
+     */
+    function openPlayerSetup() {
+        startScreen.classList.add('hidden');
+        resultScreen.classList.add('hidden');
+        playerSetupScreen.classList.remove('hidden');
+        
+        // Reset player count to 1 and update inputs
+        playerCountSelect.value = "1";
+        updatePlayerInputs();
+    }
+    
+    /**
+     * Go back to the main menu
+     */
+    function goBackToMenu() {
+        playerSetupScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+    }
+    
+    /**
+     * Update player input fields based on selected player count
+     */
+    function updatePlayerInputs() {
+        const playerCount = parseInt(playerCountSelect.value);
+        playerNamesContainer.innerHTML = '';
+        
+        for (let i = 1; i <= playerCount; i++) {
+            const playerInput = document.createElement('div');
+            playerInput.className = 'player-input';
+            
+            const label = document.createElement('label');
+            label.setAttribute('for', `player${i}-name`);
+            label.textContent = `Player ${i}:`;
+            
+            const input = document.createElement('input');
+            input.setAttribute('type', 'text');
+            input.setAttribute('id', `player${i}-name`);
+            input.setAttribute('placeholder', 'Enter name...');
+            
+            // Set default name
+            input.value = `Player ${i}`;
+            
+            playerInput.appendChild(label);
+            playerInput.appendChild(input);
+            playerNamesContainer.appendChild(playerInput);
         }
     }
 
@@ -180,16 +245,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Setup players based on input fields
+     */
+    function setupPlayers() {
+        const playerCount = parseInt(playerCountSelect.value);
+        players = [];
+        
+        for (let i = 1; i <= playerCount; i++) {
+            const nameInput = document.getElementById(`player${i}-name`);
+            const playerName = nameInput.value.trim() || `Player ${i}`;
+            
+            players.push({
+                name: playerName,
+                score: 0
+            });
+        }
+        
+        console.log("Players setup:", players);
+    }
+
+    /**
      * Start a new game
      */
     function startGame() {
         console.log("Starting a new game...");
         
+        // Setup players from input fields
+        setupPlayers();
+        
         // Reset game state
         currentQuestionIndex = 0;
-        score = 0;
+        currentPlayerIndex = 0;
         roundResults = [];
         currentRound = [];
+        
+        // Reset player scores
+        players.forEach(player => {
+            player.score = 0;
+        });
         
         // Check if we have categories data
         if (!categories || categories.length === 0 || categories.every(cat => !cat.items || cat.items.length === 0)) {
@@ -203,12 +296,13 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Current round items:", currentRound);
         
         // Reset UI
-        scoreElement.textContent = score;
+        scoreElement.textContent = players[currentPlayerIndex].score;
+        currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
         currentQuestionElement.textContent = currentQuestionIndex + 1;
         feedbackDiv.classList.add('hidden');
         
         // Show game screen
-        startScreen.classList.add('hidden');
+        playerSetupScreen.classList.add('hidden');
         resultScreen.classList.add('hidden');
         gameScreen.classList.remove('hidden');
         
@@ -349,8 +443,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear previous feedback
         feedbackDiv.classList.add('hidden');
         
-        // Update question number
+        // Update question number and current player
         currentQuestionElement.textContent = currentQuestionIndex + 1;
+        currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
+        scoreElement.textContent = players[currentPlayerIndex].score;
         
         // Load image with fade effect
         gameImage.style.opacity = 0;
@@ -408,6 +504,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Move to the next player
+     */
+    function nextPlayer() {
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        console.log(`Switching to player: ${players[currentPlayerIndex].name}`);
+        currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
+        scoreElement.textContent = players[currentPlayerIndex].score;
+    }
+
+    /**
      * Check if the user's answer is correct
      */
     function checkAnswer() {
@@ -416,8 +522,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentQuestion = currentRound[currentQuestionIndex];
         const userAnswer = guessInput.value.trim().toLowerCase();
         const correctAnswer = currentQuestion.item.toLowerCase();
+        const currentPlayer = players[currentPlayerIndex];
         
-        console.log(`Checking answer: "${userAnswer}" against "${correctAnswer}"`);
+        console.log(`Checking answer from ${currentPlayer.name}: "${userAnswer}" against "${correctAnswer}"`);
         
         // Simple string normalization for comparison
         const normalizedUserAnswer = userAnswer.replace(/[^a-z0-9]/gi, '');
@@ -448,8 +555,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update score if correct
         if (isCorrect) {
-            score++;
-            scoreElement.textContent = score;
+            currentPlayer.score++;
+            scoreElement.textContent = currentPlayer.score;
         }
         
         // Save the result for the summary
@@ -458,11 +565,16 @@ document.addEventListener('DOMContentLoaded', function() {
             category: currentQuestion.category,
             imagePath: currentQuestion.imagePath,
             userAnswer: userAnswer,
-            isCorrect: isCorrect
+            isCorrect: isCorrect,
+            player: currentPlayer.name
         });
         
         // Move to the next question after a short delay
         setTimeout(() => {
+            if (players.length > 1) {
+                nextPlayer();
+            }
+            
             currentQuestionIndex++;
             loadQuestion();
         }, 1500);
@@ -472,12 +584,33 @@ document.addEventListener('DOMContentLoaded', function() {
      * Show the final results
      */
     function showResults() {
-        // Update score
-        finalScoreElement.textContent = score;
-        
         // Hide game screen, show result screen
         gameScreen.classList.add('hidden');
         resultScreen.classList.remove('hidden');
+        
+        // Sort players by score (highest first)
+        const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+        const highestScore = sortedPlayers[0].score;
+        
+        // Display player scores
+        playerScoresElement.innerHTML = '';
+        
+        sortedPlayers.forEach((player, index) => {
+            const scoreItem = document.createElement('div');
+            scoreItem.className = `player-score-item ${player.score === highestScore ? 'winner' : ''}`;
+            
+            const playerName = document.createElement('div');
+            playerName.className = 'player-name';
+            playerName.textContent = player.name;
+            
+            const playerScore = document.createElement('div');
+            playerScore.className = 'player-score';
+            playerScore.textContent = `${player.score} / ${currentRound.length}`;
+            
+            scoreItem.appendChild(playerName);
+            scoreItem.appendChild(playerScore);
+            playerScoresElement.appendChild(scoreItem);
+        });
         
         // Clear previous results
         resultDetailsElement.innerHTML = '';
@@ -493,8 +626,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const details = document.createElement('div');
             details.innerHTML = `
-                <strong>Question ${index + 1}:</strong> ${result.item} (${result.category})<br>
-                <small>Your answer: ${result.userAnswer || '(no answer)'}</small>
+                <strong>Question ${Math.floor(index / players.length) + 1}:</strong> ${result.item} (${result.category})<br>
+                <small>${result.player}: ${result.userAnswer || '(no answer)'}</small>
             `;
             
             resultItem.appendChild(icon);
