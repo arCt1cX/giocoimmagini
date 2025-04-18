@@ -833,7 +833,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // If it's a new or pending question, clear input
         if (questionStatuses[currentQuestionIndex] === null || questionStatuses[currentQuestionIndex] === 'pending') {
             guessInput.value = '';
-            guessInput.focus();
+            
+            // Only focus if this is a brand new question (not from navigation)
+            // This prevents keyboard from opening on mobile when navigating
+            if (questionStatuses[currentQuestionIndex] === null && resetTimer) {
+                guessInput.focus();
+            }
         }
     }
 
@@ -949,6 +954,9 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function navigateToPreviousImage() {
         if (currentQuestionIndex > 0) {
+            // Blur input field to prevent keyboard from opening on mobile
+            guessInput.blur();
+            
             // Mark current question as pending if not already answered
             if (questionStatuses[currentQuestionIndex] === null) {
                 questionStatuses[currentQuestionIndex] = 'pending';
@@ -966,6 +974,9 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function navigateToNextImage() {
         if (currentQuestionIndex < 4) {
+            // Blur input field to prevent keyboard from opening on mobile
+            guessInput.blur();
+            
             // Mark current question as pending if not already answered
             if (questionStatuses[currentQuestionIndex] === null) {
                 questionStatuses[currentQuestionIndex] = 'pending';
@@ -983,6 +994,9 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function navigateToImage(index) {
         if (index >= 0 && index < 5 && index !== currentQuestionIndex) {
+            // Blur input field to prevent keyboard from opening on mobile
+            guessInput.blur();
+            
             // Mark current question as pending if not already answered
             if (questionStatuses[currentQuestionIndex] === null) {
                 questionStatuses[currentQuestionIndex] = 'pending';
