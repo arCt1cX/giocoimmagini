@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const startButton = document.getElementById('start-game');
     const playAgainButton = document.getElementById('play-again');
     const submitButton = document.getElementById('submit-guess');
+    const prevImageButton = document.getElementById('prev-image');
+    const nextImageButton = document.getElementById('next-image');
     
     const playerCountSelect = document.getElementById('player-count');
     const playerNamesContainer = document.getElementById('player-names-container');
@@ -27,6 +29,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const playerScoresElement = document.getElementById('player-scores');
     const currentQuestionElement = document.getElementById('current-question');
     const resultDetailsElement = document.getElementById('result-details');
+    const timeRemainingElement = document.getElementById('time-remaining');
+    const indicatorCircles = document.querySelectorAll('.circle');
 
     // Game state
     let categories = [];
@@ -38,6 +42,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let roundResults = [];
     let currentRoundNumber = 1;
     let totalRounds = 3;
+    let timer = null;
+    let timeRemaining = 60;
+    let questionStatuses = []; // Array to track the status of each image: null, 'correct', 'incorrect', or 'pending'
     
     // Sound effects (optional)
     const correctSound = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAqAABHnwAFBwkMDhATFRcaHB8hJCYpKy4wMzU4Ojs+QUNGSEtNUFJVV1pcX2FkZ2lsbnFzdnl7foGDhoiLjZCSlZeanZ+ipKeprK6xtLa5vL7BxMbJy87R09bY293g4uXn6uzu8fP2+fv+AAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAXaAAAAAAAAR5+fSpwoAAAAAAAAAAAAAAAAAAD/+0DEAAP7uuzoYwkAJ3VNOt7Pg3B7QwdgAsK6WTEsxoiWpnrJmDNDIwRtCY+g8BBIiDtHcMjAcMTCYAwCAmDkNzBIBuVP/1QLJcHgBmBYDAQMwNhmAK10MCQCzAzAcGA4AIHBMLTJm0MFgBwYBGCAHA2DphR+kDgCwSAYwFAGDgdHYZ+k14qigAYJgJAQCAAHgKHgRB/+NUB4gFwUAIwHAcS+VQj9rn//1QygNB3C//tAxAcAEn7s8f5iAAp8ZqH/sOAFLVBJ0iNTTy1DIMzIJPLTO3/xAAJDqIvGp9C5wJeJh3+LuH/5EAKjABG2aLu69F3C7sTzAEOwHBUJUNw6gdF36t80QmDIcCCFWXDtF3dF3d4O4nGQXB4MXSKlRuIgouIl3+r/yrVbiyUMDBBwfJcFYuAGTjXqP/7NKtQw2d8qsP/7QMQDARKq0uz+HgCKGFXh/5hQCbgzOYuIcUWkBIKQh/KqgxarILDEoJiYUZSfJjTaZMYU1FMy45OS41VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=');
@@ -60,6 +67,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     submitButton.addEventListener('click', checkAnswer);
+    prevImageButton.addEventListener('click', navigateToPreviousImage);
+    nextImageButton.addEventListener('click', navigateToNextImage);
+    
+    // Add click listeners to indicator circles for navigation
+    indicatorCircles.forEach((circle, index) => {
+        circle.addEventListener('click', () => navigateToImage(index));
+    });
     
     // Player count selection changes the input fields
     playerCountSelect.addEventListener('change', updatePlayerInputs);
@@ -383,14 +397,34 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Current player's round is already set in playerRounds[currentPlayerIndex]
         
+        // Reset question statuses for this player's turn
+        questionStatuses = [null, null, null, null, null];
+        
         // Reset UI
         scoreElement.textContent = players[currentPlayerIndex].roundScores[currentRoundNumber - 1];
         currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
+        currentQuestionIndex = 0;
+        
+        // Enable navigation buttons
+        prevImageButton.disabled = true; // Disabled at first question
+        nextImageButton.disabled = false;
+        submitButton.disabled = false;
+        guessInput.disabled = false;
+        
+        // Update question number
         currentQuestionElement.textContent = currentQuestionIndex + 1;
+        
+        // Clear feedback
         feedbackDiv.classList.add('hidden');
         
+        // Start the timer
+        startTimer();
+        
+        // Update circle indicators
+        updateCircleIndicators();
+        
         // Load the first question
-        loadQuestion();
+        loadQuestion(false); // Don't restart timer as we just started it
     }
 
     /**
@@ -527,6 +561,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // If this question was already answered or timer is up, don't allow submission
+        if (questionStatuses[currentQuestionIndex] === 'correct' || 
+            questionStatuses[currentQuestionIndex] === 'incorrect' || 
+            timeRemaining <= 0) {
+            return;
+        }
+        
         // Disable the submit button to prevent multiple submissions
         submitButton.disabled = true;
         submitButton.style.opacity = "0.5";
@@ -570,6 +611,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log(`Answer is ${isCorrect ? 'correct' : 'incorrect'}`);
         
+        // Update question status
+        questionStatuses[currentQuestionIndex] = isCorrect ? 'correct' : 'incorrect';
+        
+        // Update circle indicators
+        updateCircleIndicators();
+        
         // Show feedback
         feedbackDiv.textContent = isCorrect 
             ? `Correct! It's ${currentQuestion.item}` 
@@ -606,36 +653,75 @@ document.addEventListener('DOMContentLoaded', function() {
             player: currentPlayer.name
         });
         
-        // Move to the next question after a short delay
-        setTimeout(() => {
-            currentQuestionIndex++;
-            loadQuestion();
-        }, 1500);
+        // Check if all questions have been answered
+        const allAnswered = questionStatuses.every(status => 
+            status === 'correct' || status === 'incorrect');
+        
+        if (allAnswered) {
+            // Stop the timer
+            stopTimer();
+            
+            // Move to the next player or end the round after a delay
+            setTimeout(() => {
+                if (currentPlayerIndex < players.length - 1) {
+                    // Move to the next player
+                    currentPlayerIndex++;
+                    currentQuestionIndex = 0;
+                    startRound();
+                } else {
+                    // All players have completed this round
+                    showRoundResults();
+                }
+            }, 2000);
+        } else {
+            // Move to the next unanswered question after a short delay
+            setTimeout(() => {
+                let nextIndex = findNextUnansweredQuestion();
+                if (nextIndex !== -1) {
+                    currentQuestionIndex = nextIndex;
+                    loadQuestion(false); // Don't reset timer
+                }
+            }, 1500);
+        }
+    }
+    
+    /**
+     * Find the next unanswered question
+     */
+    function findNextUnansweredQuestion() {
+        // First look for null (never seen) questions
+        for (let i = 0; i < questionStatuses.length; i++) {
+            if (questionStatuses[i] === null) {
+                return i;
+            }
+        }
+        
+        // Then look for pending questions
+        for (let i = 0; i < questionStatuses.length; i++) {
+            if (questionStatuses[i] === 'pending') {
+                return i;
+            }
+        }
+        
+        // No unanswered questions found
+        return -1;
     }
     
     /**
      * Load the current question
      */
-    async function loadQuestion() {
-        // Check if we've gone through all questions for this player
-        if (currentQuestionIndex >= 5) {
-            // All questions for this player are done
-            if (currentPlayerIndex < players.length - 1) {
-                // Move to the next player
-                currentPlayerIndex++;
-                currentQuestionIndex = 0;
-                startRound();
-            } else {
-                // All players have completed this round
-                showRoundResults();
-            }
-            return;
+    async function loadQuestion(resetTimer = true) {
+        // If this is called with reset timer and we're in a new question, start the timer
+        if (resetTimer) {
+            startTimer();
         }
         
-        // Enable the submit button for the new question
-        submitButton.disabled = false;
-        submitButton.style.opacity = "1";
-        submitButton.style.cursor = "pointer";
+        // Update circle indicators
+        updateCircleIndicators();
+        
+        // Update navigation buttons
+        prevImageButton.disabled = currentQuestionIndex === 0;
+        nextImageButton.disabled = currentQuestionIndex === 4;
         
         // Get the current player's round items
         const currentPlayerRound = playerRounds[currentPlayerIndex];
@@ -651,22 +737,36 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!currentQuestion) {
             console.error("Question not found at index", currentQuestionIndex);
-            // Skip to the next question
-            currentQuestionIndex++;
-            loadQuestion();
             return;
         }
         
         console.log(`Loading question ${currentQuestionIndex + 1} for ${players[currentPlayerIndex].name}: ${currentQuestion.item} (${currentQuestion.category})`);
         console.log(`Image path: ${currentQuestion.imagePath}`);
         
-        // Clear previous feedback
-        feedbackDiv.classList.add('hidden');
+        // Clear previous feedback if loading a new question
+        if (questionStatuses[currentQuestionIndex] === null || questionStatuses[currentQuestionIndex] === 'pending') {
+            feedbackDiv.classList.add('hidden');
+        } else {
+            // Show the previous feedback for already answered questions
+            const isCorrect = questionStatuses[currentQuestionIndex] === 'correct';
+            feedbackDiv.textContent = isCorrect 
+                ? `Correct! It's ${currentQuestion.item}` 
+                : `Incorrect. It was ${currentQuestion.item}`;
+            
+            feedbackDiv.className = isCorrect ? 'feedback correct' : 'feedback incorrect';
+            feedbackDiv.classList.remove('hidden');
+        }
         
         // Update question number and current player
         currentQuestionElement.textContent = currentQuestionIndex + 1;
         currentPlayerNameElement.textContent = players[currentPlayerIndex].name;
         scoreElement.textContent = players[currentPlayerIndex].roundScores[currentRoundNumber - 1];
+        
+        // Enable/disable submit button based on if the question was already answered
+        const alreadyAnswered = questionStatuses[currentQuestionIndex] === 'correct' || 
+                               questionStatuses[currentQuestionIndex] === 'incorrect';
+        submitButton.disabled = alreadyAnswered;
+        guessInput.disabled = alreadyAnswered;
         
         // Load image with fade effect
         gameImage.style.opacity = 0;
@@ -730,15 +830,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 50);
         }
         
-        // Clear and focus on input
-        guessInput.value = '';
-        guessInput.focus();
+        // If it's a new or pending question, clear input
+        if (questionStatuses[currentQuestionIndex] === null || questionStatuses[currentQuestionIndex] === 'pending') {
+            guessInput.value = '';
+            guessInput.focus();
+        }
     }
 
     /**
      * Show the results for the current round
      */
     function showRoundResults() {
+        // Stop the timer if it's still running
+        stopTimer();
+        
         // Hide game screen, show result screen
         gameScreen.classList.add('hidden');
         resultScreen.classList.remove('hidden');
@@ -837,5 +942,158 @@ document.addEventListener('DOMContentLoaded', function() {
             const j = Math.floor(Math.random() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
         }
+    }
+
+    /**
+     * Navigate to previous image
+     */
+    function navigateToPreviousImage() {
+        if (currentQuestionIndex > 0) {
+            // Mark current question as pending if not already answered
+            if (questionStatuses[currentQuestionIndex] === null) {
+                questionStatuses[currentQuestionIndex] = 'pending';
+                updateCircleIndicators();
+            }
+            
+            // Go to previous image
+            currentQuestionIndex--;
+            loadQuestion(false); // Don't reset the timer
+        }
+    }
+    
+    /**
+     * Navigate to next image
+     */
+    function navigateToNextImage() {
+        if (currentQuestionIndex < 4) {
+            // Mark current question as pending if not already answered
+            if (questionStatuses[currentQuestionIndex] === null) {
+                questionStatuses[currentQuestionIndex] = 'pending';
+                updateCircleIndicators();
+            }
+            
+            // Go to next image
+            currentQuestionIndex++;
+            loadQuestion(false); // Don't reset the timer
+        }
+    }
+    
+    /**
+     * Navigate to a specific image by index
+     */
+    function navigateToImage(index) {
+        if (index >= 0 && index < 5 && index !== currentQuestionIndex) {
+            // Mark current question as pending if not already answered
+            if (questionStatuses[currentQuestionIndex] === null) {
+                questionStatuses[currentQuestionIndex] = 'pending';
+            }
+            
+            // Go to selected image
+            currentQuestionIndex = index;
+            loadQuestion(false); // Don't reset the timer
+        }
+    }
+    
+    /**
+     * Start the round timer
+     */
+    function startTimer() {
+        // Clear any existing timer
+        clearInterval(timer);
+        
+        // Reset time remaining
+        timeRemaining = 60;
+        timeRemainingElement.textContent = timeRemaining;
+        
+        // Start a new timer
+        timer = setInterval(() => {
+            timeRemaining--;
+            timeRemainingElement.textContent = timeRemaining;
+            
+            // Time's up
+            if (timeRemaining <= 0) {
+                clearInterval(timer);
+                endPlayerTurn();
+            }
+        }, 1000);
+    }
+    
+    /**
+     * Stop the timer
+     */
+    function stopTimer() {
+        clearInterval(timer);
+    }
+    
+    /**
+     * End the current player's turn when time runs out
+     */
+    function endPlayerTurn() {
+        // Mark any unanswered questions as incorrect
+        questionStatuses.forEach((status, index) => {
+            if (status === null || status === 'pending') {
+                questionStatuses[index] = 'incorrect';
+                
+                // Add to results
+                const currentPlayerRound = playerRounds[currentPlayerIndex];
+                if (currentPlayerRound && currentPlayerRound[index]) {
+                    roundResults.push({
+                        round: currentRoundNumber,
+                        item: currentPlayerRound[index].item,
+                        category: currentPlayerRound[index].category,
+                        imagePath: currentPlayerRound[index].imagePath,
+                        userAnswer: '(time ran out)',
+                        isCorrect: false,
+                        player: players[currentPlayerIndex].name
+                    });
+                }
+            }
+        });
+        
+        // Update circles
+        updateCircleIndicators();
+        
+        // Show time's up message
+        feedbackDiv.textContent = "Time's up!";
+        feedbackDiv.className = "feedback incorrect";
+        feedbackDiv.classList.remove("hidden");
+        
+        // Disable inputs
+        submitButton.disabled = true;
+        guessInput.disabled = true;
+        prevImageButton.disabled = true;
+        nextImageButton.disabled = true;
+        
+        // Move to the next player or end the round after a delay
+        setTimeout(() => {
+            if (currentPlayerIndex < players.length - 1) {
+                // Move to the next player
+                currentPlayerIndex++;
+                currentQuestionIndex = 0;
+                startRound();
+            } else {
+                // All players have completed this round
+                showRoundResults();
+            }
+        }, 2000);
+    }
+    
+    /**
+     * Update the indicator circles based on question statuses
+     */
+    function updateCircleIndicators() {
+        indicatorCircles.forEach((circle, index) => {
+            // Clear existing classes
+            circle.className = 'circle';
+            
+            // Add status class
+            if (index === currentQuestionIndex) {
+                circle.classList.add('current');
+            }
+            
+            if (questionStatuses[index]) {
+                circle.classList.add(questionStatuses[index]);
+            }
+        });
     }
 }); 

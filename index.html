@@ -30,7 +30,7 @@
             <div id="player-names-container" class="player-names-container">
                 <div class="player-input">
                     <label for="player1-name">Player 1:</label>
-                    <input type="text" id="player1-name" placeholder="Enter name...">
+                    <input type="text" id="player1-name" placeholder="Player 1">
                 </div>
             </div>
             
@@ -44,11 +44,17 @@
             <div class="game-header">
                 <div class="score">Score: <span id="score">0</span>/5</div>
                 <div class="current-player">Player: <span id="current-player-name">Player 1</span></div>
-                <div class="progress">Question <span id="current-question">1</span> of 5</div>
+                <div class="timer">Time: <span id="time-remaining">60</span>s</div>
             </div>
 
             <div class="image-container">
                 <img id="game-image" src="" alt="Guess what this is">
+            </div>
+
+            <div class="navigation-controls">
+                <button id="prev-image" class="nav-button">&lt; Previous</button>
+                <div class="progress">Question <span id="current-question">1</span> of 5</div>
+                <button id="next-image" class="nav-button">Next &gt;</button>
             </div>
 
             <div class="guess-container">
@@ -57,6 +63,14 @@
             </div>
 
             <div id="feedback" class="feedback hidden"></div>
+            
+            <div class="indicator-circles">
+                <div class="circle" data-index="0"></div>
+                <div class="circle" data-index="1"></div>
+                <div class="circle" data-index="2"></div>
+                <div class="circle" data-index="3"></div>
+                <div class="circle" data-index="4"></div>
+            </div>
         </div>
 
         <div id="result-screen" class="screen hidden">

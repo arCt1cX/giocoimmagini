@@ -201,9 +201,70 @@ button:active {
     padding: 0 10px;
 }
 
-.score, .progress, .current-player {
+.score, .progress, .current-player, .timer {
     font-size: 1.1rem;
     font-weight: 600;
+}
+
+.timer {
+    color: #e74c3c;
+}
+
+.navigation-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.nav-button {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    background-color: #6c757d;
+}
+
+.nav-button:hover {
+    background-color: #5a6268;
+}
+
+.nav-button:disabled {
+    background-color: #adb5bd;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.indicator-circles {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.circle {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #ddd;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.circle.correct {
+    background-color: #28a745; /* Green */
+}
+
+.circle.incorrect {
+    background-color: #dc3545; /* Red */
+}
+
+.circle.pending {
+    background-color: #ffc107; /* Orange */
+}
+
+.circle.current {
+    border: 2px solid #4a6da7;
+    transform: scale(1.2);
 }
 
 .image-container {
