@@ -113,13 +113,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 categories = data;
                 console.log("Successfully loaded categories from categories.json");
-                console.log("Categories:", categories);
+                console.log(`Loaded ${categories.length} categories with a total of ${categories.reduce((sum, cat) => sum + cat.items.length, 0)} items`);
+                console.log("Categories:", categories.map(cat => `${cat.name} (${cat.items.length} items)`));
                 
                 // Pre-check if any image directories exist
+                console.log("Checking image directories for each category...");
                 for (const category of categories) {
                     try {
-                        // Log that we're checking for this category's directory
-                        console.log(`Checking for directory: img/${category.name}/`);
+                        // Create and test a sample image path from this category
+                        if (category.items && category.items.length > 0) {
+                            const sampleItem = category.items[0];
+                            const samplePath = `img/${category.name}/${sampleItem.replace(/ /g, '_').toLowerCase()}.jpg`;
+                            console.log(`Testing path for ${category.name}: ${samplePath}`);
+                            
+                            // Try to load the sample image
+                            const exists = await checkImageExists(samplePath);
+                            console.log(`${category.name} directory test: ${exists ? 'SUCCESS' : 'FAILED'}`);
+                        } else {
+                            console.warn(`Category ${category.name} has no items`);
+                        }
                     } catch (e) {
                         console.warn(`Error checking directory for ${category.name}:`, e);
                     }
@@ -496,37 +508,47 @@ document.addEventListener('DOMContentLoaded', function() {
             return generateFallbackItems();
         }
         
-        console.log("Valid categories for selection:", validCategories.map(c => c.name));
+        console.log("Valid categories for selection:", validCategories.map(c => `${c.name} (${c.items.length} items)`));
         
-        // Sort categories by number of items (descending)
-        const sortedCategories = [...validCategories].sort((a, b) => b.items.length - a.items.length);
+        // Shuffle the categories to ensure random selection
+        const shuffledCategories = [...validCategories];
+        shuffleArray(shuffledCategories);
+        console.log("Shuffled categories for selection:", shuffledCategories.map(c => c.name));
         
-        // Try to select one item from each category first
-        for (const category of sortedCategories) {
-            if (playerRound.length < 5) {
-                const randomIndex = Math.floor(Math.random() * category.items.length);
-                const item = category.items[randomIndex];
-                
-                // Create the file path
-                const imagePath = `img/${category.name}/${item.replace(/ /g, '_').toLowerCase()}.jpg`;
-                
-                playerRound.push({
-                    category: category.name,
-                    item: item,
-                    imagePath: imagePath
-                });
-            }
+        // Try to select one item from the first 5 shuffled categories
+        // This ensures we get a good mix of categories
+        const categoriesToUse = shuffledCategories.slice(0, Math.min(5, shuffledCategories.length));
+        console.log("Categories selected for this round:", categoriesToUse.map(c => c.name));
+        
+        // Select one item from each selected category
+        for (const category of categoriesToUse) {
+            const randomIndex = Math.floor(Math.random() * category.items.length);
+            const item = category.items[randomIndex];
             
-            if (playerRound.length >= 5) break;
+            // Create the file path
+            const imagePath = `img/${category.name}/${item.replace(/ /g, '_').toLowerCase()}.jpg`;
+            console.log(`Adding item from ${category.name}: ${item} (${imagePath})`);
+            
+            playerRound.push({
+                category: category.name,
+                item: item,
+                imagePath: imagePath
+            });
         }
         
-        // If we don't have 5 items yet, add more from any category
+        // If we don't have 5 items yet (because there weren't enough valid categories),
+        // add more from the available categories
         if (playerRound.length < 5) {
+            console.log(`Only have ${playerRound.length} items, need to add more...`);
+            
             // Keep track of items we've already chosen
             const chosenItems = playerRound.map(item => `${item.category}-${item.item}`);
             
             // Continue adding items until we have 5 or run out of unique items
-            while (playerRound.length < 5) {
+            let attempts = 0;
+            while (playerRound.length < 5 && attempts < 100) { // Add an attempts limit to prevent infinite loops
+                attempts++;
+                
                 // Randomly select a category
                 const categoryIndex = Math.floor(Math.random() * validCategories.length);
                 const category = validCategories[categoryIndex];
@@ -542,6 +564,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Create the file path
                     const imagePath = `img/${category.name}/${item.replace(/ /g, '_').toLowerCase()}.jpg`;
+                    console.log(`Adding additional item from ${category.name}: ${item} (${imagePath})`);
                     
                     playerRound.push({
                         category: category.name,
@@ -549,10 +572,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         imagePath: imagePath
                     });
                 }
+            }
+            
+            if (playerRound.length < 5) {
+                console.warn(`Could not find enough unique items, only have ${playerRound.length}`);
                 
-                // If we've tried all possible items, break to avoid infinite loop
-                if (chosenItems.length >= validCategories.reduce((sum, cat) => sum + cat.items.length, 0)) {
-                    break;
+                // Fill remaining slots with fallback items if needed
+                const fallbackItems = generateFallbackItems();
+                while (playerRound.length < 5 && fallbackItems.length > 0) {
+                    playerRound.push(fallbackItems.pop());
                 }
             }
         }
@@ -560,6 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Shuffle the round
         const shuffledRound = [...playerRound]; // Create a copy to shuffle
         shuffleArray(shuffledRound);
+        console.log("Final round items:", shuffledRound.map(item => `${item.category}: ${item.item}`));
         return shuffledRound;
     }
 
@@ -569,7 +598,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateFallbackItems() {
         console.log("Using fallback items for a player's round");
         
-        const fallbackRound = [
+        // Create a larger pool of fallback items from all categories
+        const fallbackPool = [
             {
                 category: 'actors',
                 item: 'Keanu Reeves',
@@ -594,13 +624,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 category: 'cartoons',
                 item: 'Homer Simpson',
                 imagePath: 'img/cartoons/homer_simpson.jpg'
+            },
+            {
+                category: 'football teams',
+                item: 'Juventus FC',
+                imagePath: 'img/football teams/juventus_fc.jpg'
+            },
+            {
+                category: 'logos',
+                item: 'Apple',
+                imagePath: 'img/logos/apple.jpg'
+            },
+            {
+                category: 'capitals',
+                item: 'Roma',
+                imagePath: 'img/capitals/roma.jpg'
+            },
+            {
+                category: 'superheroes',
+                item: 'Superman',
+                imagePath: 'img/superheroes/superman.jpg'
+            },
+            {
+                category: 'animals',
+                item: 'Leone',
+                imagePath: 'img/animals/leone.jpg'
+            },
+            {
+                category: 'flags',
+                item: 'Italia',
+                imagePath: 'img/flags/italia.jpg'
+            },
+            {
+                category: 'historical figures',
+                item: 'Leonardo da Vinci',
+                imagePath: 'img/historical figures/leonardo_da_vinci.jpg'
             }
         ];
         
-        // Shuffle the round
-        const shuffledRound = [...fallbackRound]; // Create a copy to shuffle
-        shuffleArray(shuffledRound);
-        return shuffledRound;
+        // Randomly select 5 different items from the pool
+        const shuffledPool = [...fallbackPool]; // Create a copy to shuffle
+        shuffleArray(shuffledPool);
+        
+        // Take the first 5 items
+        return shuffledPool.slice(0, 5);
     }
 
     /**
