@@ -231,7 +231,6 @@ document.addEventListener('DOMContentLoaded', function() {
             { name: 'politicians', items: [] },
             { name: 'cartoons', items: [] },
             { name: 'football teams', items: [] },
-            { name: 'logos', items: [] },
             { name: 'capitals', items: [] },
             { name: 'superheroes', items: [] },
             { name: 'animals', items: [] },
@@ -271,7 +270,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     category.items = ['Juventus FC', 'FC Barcelona', 'Real Madrid CF', 'Manchester United FC',
                                      'Liverpool FC', 'Bayern Munich', 'Paris Saint-Germain FC'];
                     break;
-                case 'logos':
                     category.items = ['Apple', 'Google', 'Microsoft', 'Amazon', 'Facebook',
                                      'Coca-Cola', 'Nike'];
                     break;
@@ -629,11 +627,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 category: 'football teams',
                 item: 'Juventus FC',
                 imagePath: 'img/football teams/juventus_fc.jpg'
-            },
-            {
-                category: 'logos',
-                item: 'Apple',
-                imagePath: 'img/logos/apple.jpg'
             },
             {
                 category: 'capitals',
