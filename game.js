@@ -999,7 +999,16 @@ document.addEventListener('DOMContentLoaded', function() {
             totalScore: player.score
         }));
         
-        const sortedPlayersByRound = [...playerRoundScores].sort((a, b) => b.roundScore - a.roundScore);
+        const sortedPlayersByRound = [...playerRoundScores].sort((a, b) => {
+            // First sort by round score (descending)
+            if (b.roundScore !== a.roundScore) {
+                return b.roundScore - a.roundScore;
+            }
+            // If round scores are tied, sort by total score (descending)
+            return b.totalScore - a.totalScore;
+        });
+        
+        // Get the highest round score
         const highestRoundScore = sortedPlayersByRound[0].roundScore;
         
         // Display player scores
@@ -1047,25 +1056,69 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear previous results
         resultDetailsElement.innerHTML = '';
         
-        // Only show detailed results for the current round
-        currentRoundResults.forEach((result, index) => {
-            const resultItem = document.createElement('div');
-            resultItem.className = `result-item ${result.isCorrect ? 'correct' : 'incorrect'}`;
+        // Add details section header
+        const detailsHeader = document.createElement('h3');
+        detailsHeader.textContent = 'Question Details';
+        detailsHeader.style.marginBottom = '10px';
+        resultDetailsElement.appendChild(detailsHeader);
+        
+        // With many players, group results by question rather than showing all individually
+        if (players.length > 4) {
+            // Create an array of unique questions
+            const questions = [...new Set(currentRoundResults.map(result => result.item))];
             
-            const icon = document.createElement('span');
-            icon.className = 'result-icon';
-            icon.textContent = result.isCorrect ? '✓' : '✗';
-            
-            const details = document.createElement('div');
-            details.innerHTML = `
-                <strong>Question ${index % 5 + 1}:</strong> ${result.item} (${result.category})<br>
-                <small>${result.player}: ${result.userAnswer || '(no answer)'}</small>
-            `;
-            
-            resultItem.appendChild(icon);
-            resultItem.appendChild(details);
-            resultDetailsElement.appendChild(resultItem);
-        });
+            // For each question, show a summary of player responses
+            questions.forEach((item, questionIndex) => {
+                // Get all results for this question
+                const questionResults = currentRoundResults.filter(result => result.item === item);
+                const category = questionResults[0].category;
+                
+                // Create a container for this question
+                const questionContainer = document.createElement('div');
+                questionContainer.className = 'result-item';
+                
+                // Calculate how many players got it right
+                const correctCount = questionResults.filter(result => result.isCorrect).length;
+                
+                // Set background color based on whether most players got it right
+                if (correctCount > players.length / 2) {
+                    questionContainer.classList.add('correct');
+                } else {
+                    questionContainer.classList.add('incorrect');
+                }
+                
+                // Create question header
+                const questionHeader = document.createElement('div');
+                questionHeader.className = 'question-header';
+                questionHeader.innerHTML = `
+                    <strong>Question ${questionIndex + 1}:</strong> ${item} (${category})<br>
+                    <small>${correctCount} out of ${players.length} players correct</small>
+                `;
+                
+                questionContainer.appendChild(questionHeader);
+                resultDetailsElement.appendChild(questionContainer);
+            });
+        } else {
+            // For fewer players, show each player's response individually
+            currentRoundResults.forEach((result, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.className = `result-item ${result.isCorrect ? 'correct' : 'incorrect'}`;
+                
+                const icon = document.createElement('span');
+                icon.className = 'result-icon';
+                icon.textContent = result.isCorrect ? '✓' : '✗';
+                
+                const details = document.createElement('div');
+                details.innerHTML = `
+                    <strong>Question ${index % 5 + 1}:</strong> ${result.item} (${result.category})<br>
+                    <small>${result.player}: ${result.userAnswer || '(no answer)'}</small>
+                `;
+                
+                resultItem.appendChild(icon);
+                resultItem.appendChild(details);
+                resultDetailsElement.appendChild(resultItem);
+            });
+        }
     }
 
     /**
