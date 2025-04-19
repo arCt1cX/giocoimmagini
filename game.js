@@ -217,7 +217,14 @@ document.addEventListener('DOMContentLoaded', function() {
             { name: 'monuments', items: [] },
             { name: 'singers', items: [] },
             { name: 'politicians', items: [] },
-            { name: 'cartoons', items: [] }
+            { name: 'cartoons', items: [] },
+            { name: 'football teams', items: [] },
+            { name: 'logos', items: [] },
+            { name: 'capitals', items: [] },
+            { name: 'superheroes', items: [] },
+            { name: 'animals', items: [] },
+            { name: 'flags', items: [] },
+            { name: 'historical figures', items: [] }
         ];
         
         // For each category, try to populate items by checking the img directory
@@ -247,6 +254,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'cartoons':
                     category.items = ['Mickey Mouse', 'Homer Simpson', 'SpongeBob SquarePants', 'Bugs Bunny',
                                      'Scooby-Doo', 'Tom and Jerry', 'Shrek'];
+                    break;
+                case 'football teams':
+                    category.items = ['Juventus FC', 'FC Barcelona', 'Real Madrid CF', 'Manchester United FC',
+                                     'Liverpool FC', 'Bayern Munich', 'Paris Saint-Germain FC'];
+                    break;
+                case 'logos':
+                    category.items = ['Apple', 'Google', 'Microsoft', 'Amazon', 'Facebook',
+                                     'Coca-Cola', 'Nike'];
+                    break;
+                case 'capitals':
+                    category.items = ['Roma', 'Parigi', 'Londra', 'Berlino', 'Madrid',
+                                     'Washington D.C.', 'Tokyo'];
+                    break;
+                case 'superheroes':
+                    category.items = ['Superman', 'Batman', 'Spider-Man', 'Iron Man', 'Wonder Woman',
+                                     'Captain America', 'Hulk'];
+                    break;
+                case 'animals':
+                    category.items = ['Leone', 'Tigre', 'Elefante', 'Giraffa', 'Zebra',
+                                     'Orso', 'Lupo'];
+                    break;
+                case 'flags':
+                    category.items = ['Italia', 'Francia', 'Germania', 'Spagna', 'Regno Unito',
+                                     'Stati Uniti', 'Giappone'];
+                    break;
+                case 'historical figures':
+                    category.items = ['Giulio Cesare', 'Alessandro Magno', 'Napoleone Bonaparte', 
+                                     'Leonardo da Vinci', 'Albert Einstein', 'Winston Churchill', 'Abraham Lincoln'];
                     break;
             }
         }
